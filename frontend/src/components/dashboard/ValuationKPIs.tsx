@@ -51,7 +51,7 @@ export function ValuationKPIs({
             <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
               Expected Sales
             </span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center">
               <ShoppingBag className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -65,13 +65,13 @@ export function ValuationKPIs({
       </Card>
 
       {/* Projected Tubo */}
-      <Card className="shadow-2xs border-emerald-200/80 bg-emerald-50/20">
+      <Card className="shadow-2xs border-zinc-200 bg-white">
         <CardContent className="p-4 space-y-1">
-          <div className="flex items-center justify-between text-emerald-800">
+          <div className="flex items-center justify-between text-zinc-500">
             <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
               Projected Tubo
             </span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center">
               <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -85,7 +85,7 @@ export function ValuationKPIs({
       </Card>
 
       {/* Stock Health */}
-      <Card className={`shadow-2xs border-zinc-200 ${lowStockCount > 0 ? "border-rose-200 bg-rose-50/30" : ""}`}>
+      <Card className="shadow-2xs border-zinc-200 bg-white">
         <CardContent className="p-4 space-y-1">
           <div className="flex items-center justify-between text-zinc-500">
             <span className="text-[11px] font-bold uppercase tracking-wider font-mono">

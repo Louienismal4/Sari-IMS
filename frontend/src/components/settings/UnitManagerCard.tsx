@@ -74,7 +74,7 @@ export function UnitManagerCard({
     <Card className="shadow-2xs border-zinc-200">
       <CardHeader className="p-4 sm:p-5 pb-3 border-b border-zinc-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 flex items-center justify-center">
             <Scale className="w-4 h-4" />
           </div>
           <div>
@@ -145,13 +145,13 @@ export function UnitManagerCard({
               {customUnits.map((u) => (
                 <div
                   key={u.id}
-                  className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-200 flex items-center justify-between gap-2"
+                  className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
                     <span className="text-xs font-semibold text-zinc-900 block truncate">
                       {u.label}
                     </span>
-                    <span className="text-[10px] font-mono text-emerald-700 block">
+                    <span className="text-[10px] font-mono text-zinc-500 block">
                       code: {u.name}
                     </span>
                   </div>

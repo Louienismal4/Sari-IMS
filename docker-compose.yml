@@ -6,9 +6,9 @@ services:
     restart: always
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-sari_inventory}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Error: DB_ROOT_PASSWORD must be set in .env}
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?Error: DB_ROOT_PASSWORD must be set in .env}"
       MYSQL_USER: ${DB_USERNAME:-sari_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}
+      MYSQL_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
     ports:
       - "127.0.0.1:${DB_PORT:-3306}:3306"
     volumes:
@@ -41,7 +41,7 @@ services:
       DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE:-sari_inventory}
       DB_USERNAME: ${DB_USERNAME:-sari_user}
-      DB_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}
+      DB_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       mysql:

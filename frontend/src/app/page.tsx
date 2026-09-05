@@ -11,6 +11,7 @@ import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
 import { RestockUrgencyFeed } from "@/components/dashboard/RestockUrgencyFeed";
 import { TopMarginLeaders } from "@/components/dashboard/TopMarginLeaders";
 import { ActivityLedger } from "@/components/dashboard/ActivityLedger";
+import { ReorderShoppingListCard } from "@/components/dashboard/ReorderShoppingListCard";
 import { ProductTable } from "@/components/products/ProductTable";
 import { ProductModal } from "@/components/products/ProductModal";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
@@ -212,6 +213,9 @@ export default function DashboardPage() {
           totalPhysicalUnits={totalUnits}
           lowStockCount={lowStockCount}
         />
+
+        {/* Mid-Week Wholesaler & Puregold Replenishment List */}
+        <ReorderShoppingListCard products={products} />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-8 space-y-6">

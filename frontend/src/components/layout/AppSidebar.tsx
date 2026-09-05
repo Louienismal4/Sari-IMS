@@ -13,6 +13,9 @@ import {
   Coins,
   TrendingUp,
   Layers,
+  ShoppingCart,
+  ClipboardCheck,
+  BookUser,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +49,8 @@ export function AppSidebar({
   const pathname = usePathname();
 
   const isDashboard = pathname === "/";
+  const isAudit = pathname === "/audit";
+  const isDebts = pathname === "/debts";
   const isProducts = pathname === "/products";
   const isManage = pathname === "/manage";
   const isSettings = pathname === "/settings";
@@ -102,6 +107,28 @@ export function AppSidebar({
               </Button>
             </Link>
 
+            <Link href="/audit" className="block">
+              <Button
+                variant={isAudit ? "default" : "ghost"}
+                className="w-full justify-start gap-2 text-xs font-semibold"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>Weekly Stock Audit</span>
+              </Button>
+            </Link>
+
+            <Link href="/debts" className="block">
+              <Button
+                variant={isDebts ? "default" : "ghost"}
+                className="w-full justify-start gap-2 text-xs font-semibold"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <BookUser className="w-3.5 h-3.5 " />
+                <span>Listahan ng Utang</span>
+              </Button>
+            </Link>
+
             <Link href="/products" className="block">
               <Button
                 variant={isProducts ? "default" : "ghost"}
@@ -113,7 +140,10 @@ export function AppSidebar({
                   <span>List of Items</span>
                 </div>
                 {totalSKUs > 0 && (
-                  <Badge variant={isProducts ? "secondary" : "outline"} className="text-[10px] px-1.5 py-0 font-mono">
+                  <Badge
+                    variant={isProducts ? "secondary" : "outline"}
+                    className="text-[10px] px-1.5 py-0 font-mono"
+                  >
                     {totalSKUs}
                   </Badge>
                 )}
@@ -165,7 +195,10 @@ export function AppSidebar({
                 </span>
                 <Button
                   variant={selectedCategory === "all" ? "default" : "ghost"}
-                  onClick={() => { onSelectCategory("all"); setSidebarOpen(false); }}
+                  onClick={() => {
+                    onSelectCategory("all");
+                    setSidebarOpen(false);
+                  }}
                   className="w-full justify-start gap-2 truncate text-xs"
                 >
                   <Layers className="w-3.5 h-3.5 shrink-0" />
@@ -175,7 +208,10 @@ export function AppSidebar({
                   <Button
                     key={cat.id}
                     variant={selectedCategory === cat.id ? "default" : "ghost"}
-                    onClick={() => { onSelectCategory(cat.id); setSidebarOpen(false); }}
+                    onClick={() => {
+                      onSelectCategory(cat.id);
+                      setSidebarOpen(false);
+                    }}
                     className="w-full justify-start gap-2 truncate text-xs"
                   >
                     <Layers className="w-3.5 h-3.5 shrink-0" />
@@ -199,7 +235,11 @@ export function AppSidebar({
                     <span>Puhunan</span>
                   </div>
                   <span className="font-mono font-semibold text-zinc-800">
-                    ₱{totalCapital.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱
+                    {totalCapital.toLocaleString("en-PH", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
@@ -208,7 +248,11 @@ export function AppSidebar({
                     <span>Est. Tubo</span>
                   </div>
                   <span className="font-mono font-bold text-emerald-600">
-                    +₱{totalTubo.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    +₱
+                    {totalTubo.toLocaleString("en-PH", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
               </CardContent>

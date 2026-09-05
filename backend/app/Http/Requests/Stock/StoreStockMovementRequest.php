@@ -15,7 +15,7 @@ class StoreStockMovementRequest extends FormRequest
     {
         return [
             'product_id' => 'required|exists:products,id',
-            'type' => 'required|in:restock,damage,expired,adjustment',
+            'type' => 'required|in:restock,damage,expired,adjustment,sale',
             'quantity_change' => 'required|integer|not_in:0',
             'notes' => 'nullable|string|max:255',
         ];

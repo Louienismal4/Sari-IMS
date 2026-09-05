@@ -17,7 +17,7 @@ export function RestockUrgencyFeed({ lowStockItems, onRestock }: RestockUrgencyF
       <CardHeader className="p-4 pb-3 border-b border-zinc-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center">
               <AlertTriangle className="w-3.5 h-3.5" />
             </div>
             <div>
@@ -50,7 +50,7 @@ export function RestockUrgencyFeed({ lowStockItems, onRestock }: RestockUrgencyF
             {lowStockItems.slice(0, 5).map((item) => (
               <div
                 key={item.id}
-                className="p-2.5 rounded-lg bg-rose-50/50 border border-rose-100 flex items-center justify-between gap-2"
+                className="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200 flex items-center justify-between gap-2"
               >
                 <div className="min-w-0">
                   <span className="text-xs font-semibold text-zinc-900 block truncate">
@@ -64,7 +64,7 @@ export function RestockUrgencyFeed({ lowStockItems, onRestock }: RestockUrgencyF
                   size="sm"
                   variant="outline"
                   onClick={() => onRestock(item, 10)}
-                  className="h-6 text-[10px] px-2 border-rose-200 text-rose-700 hover:bg-rose-100 font-mono shrink-0"
+                  className="h-6 text-[10px] px-2 border-zinc-200 text-zinc-700 hover:bg-zinc-100 font-mono shrink-0"
                   title="Quick restock +10"
                 >
                   +10 Restock
