@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, CheckCircle2, AlertCircle, Clock, Check, User, Calendar, Phone } from "lucide-react";
+import { Search, CheckCircle2, Clock, Check, User, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,10 +56,10 @@ export function DebtsLedgerView({
   return (
     <div className="space-y-4">
       {/* Metric & Summary Header Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="bg-white border border-zinc-200 shadow-2xs rounded-xl p-4">
           <span className="text-xs font-medium text-zinc-500 uppercase font-mono">
-            Kabuuan ng Utang (Total Unpaid)
+            Total Outstanding Credit
           </span>
           <p className="text-2xl font-black text-zinc-900 font-mono mt-1">
             ₱{totalUnpaidAmount.toFixed(2)}
@@ -69,30 +69,30 @@ export function DebtsLedgerView({
           </span>
         </div>
 
-        <div className="bg-white border border-zinc-200 rounded-xl p-4 sm:col-span-2 flex flex-col justify-between">
+        <div className="bg-white border border-zinc-200 rounded-xl p-4 lg:col-span-2 flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-bold text-zinc-900 uppercase font-mono">
-              Listahan ng Utang (Store Credit Ledger)
+              Store Credit Ledger
             </h4>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Keep track of customers with pending balances and record one-click debt settlements.
+              Keep track of customers with pending balances and record one-click settlements.
             </p>
           </div>
 
           {/* Search bar & filter pills */}
-          <div className="flex items-center gap-2 mt-3 pt-2 border-t border-zinc-100 flex-wrap sm:flex-nowrap">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mt-3 pt-2 border-t border-zinc-100 flex-wrap">
+            <div className="relative flex-1 min-w-[160px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
               <Input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search debtor name, phone, or invoice..."
+                placeholder="Search debtor name or invoice..."
                 className="pl-8 h-8 text-xs bg-zinc-50"
               />
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 type="button"
                 size="sm"
@@ -133,11 +133,11 @@ export function DebtsLedgerView({
               <CheckCircle2 className="w-6 h-6 text-emerald-500" />
             </div>
             <h4 className="text-sm font-semibold text-zinc-900">
-              {statusFilter === "unpaid" ? "Walang Utang! (No pending debts)" : "No records found"}
+              {statusFilter === "unpaid" ? "No Pending Debts" : "No records found"}
             </h4>
             <p className="text-xs text-zinc-400 mt-1 max-w-sm">
               {statusFilter === "unpaid"
-                ? "All customers are fully paid. New credit sales logged from the counter will automatically appear here."
+                ? "All customers have settled their accounts. Credit sales logged from the counter will appear here."
                 : "No debtor entries match your active search or filter criteria."}
             </p>
           </div>
@@ -149,7 +149,6 @@ export function DebtsLedgerView({
                   <th className="py-2.5 px-4 font-semibold">Customer / Debtor</th>
                   <th className="py-2.5 px-4 font-semibold">Date &amp; Ref</th>
                   <th className="py-2.5 px-4 font-semibold">Items Owed</th>
-                  <th className="py-2.5 px-4 font-semibold">Notes</th>
                   <th className="py-2.5 px-4 font-semibold text-right">Amount</th>
                   <th className="py-2.5 px-4 font-semibold text-center">Status</th>
                   <th className="py-2.5 px-4 font-semibold text-right">Action</th>
@@ -178,12 +177,6 @@ export function DebtsLedgerView({
                           <User className="w-3.5 h-3.5 text-zinc-400" />
                           <span>{debt.customer_name || "Anonymous Customer"}</span>
                         </div>
-                        {debt.customer_phone && (
-                          <div className="flex items-center gap-1 text-[11px] text-zinc-400 font-mono mt-0.5">
-                            <Phone className="w-3 h-3" />
-                            <span>{debt.customer_phone}</span>
-                          </div>
-                        )}
                       </td>
 
                       {/* Date & Ref */}
@@ -214,11 +207,6 @@ export function DebtsLedgerView({
                             <span className="text-zinc-400 italic">No item breakdown</span>
                           )}
                         </div>
-                      </td>
-
-                      {/* Notes */}
-                      <td className="py-3 px-4 text-zinc-500 text-[11px] max-w-[150px] truncate">
-                        {debt.notes || "—"}
                       </td>
 
                       {/* Amount */}
@@ -260,7 +248,7 @@ export function DebtsLedgerView({
                             ) : (
                               <>
                                 <Check className="w-3.5 h-3.5" />
-                                <span>Bayaran</span>
+                                <span>Settle</span>
                               </>
                             )}
                           </Button>

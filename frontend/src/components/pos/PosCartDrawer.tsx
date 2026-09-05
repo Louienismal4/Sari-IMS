@@ -159,16 +159,16 @@ export function PosCartDrawer({
             </div>
           </Button>
 
-          {/* Owed / Utang Checkout */}
+          {/* Store Credit Checkout */}
           <Button
             type="button"
             disabled={isCartEmpty}
             onClick={onOpenUtangModal}
-            className="h-11 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs flex flex-col items-center justify-center gap-0.5 rounded-xl shadow-sm active:scale-[0.98] transition-transform"
+            className="h-11 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs flex flex-col items-center justify-center gap-0.5 rounded-xl shadow-sm active:scale-[0.98] transition-transform"
           >
             <div className="flex items-center gap-1.5">
               <BookUser className="w-4 h-4" />
-              <span>I-lista (Utang)</span>
+              <span>Store Credit</span>
             </div>
           </Button>
         </div>

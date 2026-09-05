@@ -20,13 +20,13 @@ export function AppHeader({
   actions,
 }: AppHeaderProps) {
   return (
-    <header className="h-16 min-h-16 bg-white border-b border-zinc-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sticky top-0 z-30">
+    <header className="h-16 min-h-16 w-full bg-white border-b border-zinc-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sticky top-0 z-30">
       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
         <Button
           variant="ghost"
           size="icon"
           onClick={onOpenSidebar}
-          className="md:hidden text-zinc-600 hover:text-zinc-900 shrink-0 h-8 w-8"
+          className="lg:hidden text-zinc-600 hover:text-zinc-900 shrink-0 h-8 w-8"
           aria-label="Open navigation"
         >
           <Menu className="w-4 h-4" />

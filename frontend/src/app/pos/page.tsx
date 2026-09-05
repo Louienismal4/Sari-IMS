@@ -144,11 +144,11 @@ export default function PosPage() {
       await loadDebts();
 
       showToast(
-        `Utang recorded for ${sale.customer_name} (₱${sale.total_amount.toFixed(2)})`,
+        `Store credit recorded for ${sale.customer_name} (₱${sale.total_amount.toFixed(2)})`,
         "success"
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to record owed sale";
+      const msg = err instanceof Error ? err.message : "Failed to record credit sale";
       showToast(msg, "error");
     } finally {
       setIsProcessing(false);
@@ -159,9 +159,9 @@ export default function PosPage() {
   const handleSettleDebt = async (sale: Sale) => {
     setSettlingId(sale.id);
     try {
-      await settleDebt(sale.id, "Bayad sa counter");
+      await settleDebt(sale.id, "Settled at counter");
       await loadDebts();
-      showToast(`Utang ni ${sale.customer_name} has been settled!`, "success");
+      showToast(`Credit account for ${sale.customer_name} has been settled!`, "success");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to settle debt";
       showToast(msg, "error");
@@ -175,7 +175,7 @@ export default function PosPage() {
       {/* Top Navbar */}
       <AppHeader
         title="POS Counter & Register"
-        subtitle="Process counter sales and log customer store credit ('Utang')"
+        subtitle="Process counter sales and log customer store credit"
         onOpenSidebar={() => setSidebarOpen(true)}
       />
 
@@ -206,7 +206,7 @@ export default function PosPage() {
             className="text-xs h-8 gap-1.5 rounded-lg"
           >
             <BookUser className="w-3.5 h-3.5" />
-            <span>Listahan ng Utang</span>
+            <span>Customer Debts</span>
             {debts.filter((d) => d.payment_status === "unpaid").length > 0 && (
               <span className="ml-1 bg-amber-500 text-white rounded-full px-1.5 py-0 text-[10px] font-mono font-bold">
                 {debts.filter((d) => d.payment_status === "unpaid").length}

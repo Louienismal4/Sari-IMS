@@ -61,13 +61,13 @@ export function AppSidebar({
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-zinc-900/40 backdrop-blur-[2px] md:hidden transition-opacity duration-200"
+          className="fixed inset-0 z-40 bg-zinc-900/40 backdrop-blur-[2px] lg:hidden transition-opacity duration-200"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-zinc-200 flex flex-col transition-transform duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-zinc-200 flex flex-col transition-transform duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -82,7 +82,7 @@ export function AppSidebar({
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden text-zinc-400 hover:text-zinc-700"
+            className="lg:hidden text-zinc-400 hover:text-zinc-700"
             aria-label="Close navigation"
           >
             <X className="w-4 h-4" />
@@ -125,7 +125,7 @@ export function AppSidebar({
                 onClick={() => setSidebarOpen(false)}
               >
                 <BookUser className="w-3.5 h-3.5 " />
-                <span>Listahan ng Utang</span>
+                <span>Customer Debts</span>
               </Button>
             </Link>
 

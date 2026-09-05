@@ -35,19 +35,12 @@ export function OwedCustomerModal({
   existingDebtorNames = [],
 }: OwedCustomerModalProps) {
   const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [notes, setNotes] = useState("");
-
   const nameInputId = useId();
-  const phoneInputId = useId();
-  const notesInputId = useId();
 
   // Reset inputs when opened
   useEffect(() => {
     if (isOpen) {
       setCustomerName("");
-      setCustomerPhone("");
-      setNotes("");
     }
   }, [isOpen]);
 
@@ -57,8 +50,6 @@ export function OwedCustomerModal({
 
     await onConfirm({
       customer_name: customerName.trim(),
-      customer_phone: customerPhone.trim() || undefined,
-      notes: notes.trim() || undefined,
     });
   };
 
@@ -72,7 +63,7 @@ export function OwedCustomerModal({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold">
-                I-lista sa Utang (Credit Sale)
+                Record Store Credit Sale
               </DialogTitle>
               <DialogDescription className="text-xs text-zinc-500">
                 Record owed items under customer name in the ledger
@@ -85,7 +76,7 @@ export function OwedCustomerModal({
           {/* Total Amount Banner */}
           <div className="bg-zinc-50 rounded-xl p-3.5 border border-zinc-200 text-center">
             <span className="text-[11px] font-mono uppercase tracking-wide text-zinc-500">
-              Halaga ng Utang (Total Owed)
+              Total Credit Amount
             </span>
             <p className="text-2xl font-black text-zinc-900 font-mono mt-0.5">
               ₱{totalAmount.toFixed(2)}
@@ -95,7 +86,7 @@ export function OwedCustomerModal({
           {/* Customer Name Field */}
           <div className="space-y-1.5">
             <label htmlFor={nameInputId} className="text-xs font-semibold text-zinc-800">
-              Pangalan ng Customer (Customer Name) <span className="text-rose-500">*</span>
+              Customer Name <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -104,7 +95,7 @@ export function OwedCustomerModal({
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="e.g. Aling Nena, Kuya Jun"
+                placeholder="e.g. Maria Santos, John Doe"
                 required
                 autoFocus
                 className="pl-9 h-11 bg-white text-sm"
@@ -129,36 +120,6 @@ export function OwedCustomerModal({
             )}
           </div>
 
-          {/* Phone Number (Optional) */}
-          <div className="space-y-1.5">
-            <label htmlFor={phoneInputId} className="text-xs font-medium text-zinc-700">
-              Contact Number (Optional)
-            </label>
-            <Input
-              id={phoneInputId}
-              type="tel"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="e.g. 0917-xxx-xxxx"
-              className="h-10 bg-white text-sm"
-            />
-          </div>
-
-          {/* Notes / Due Date (Optional) */}
-          <div className="space-y-1.5">
-            <label htmlFor={notesInputId} className="text-xs font-medium text-zinc-700">
-              Notes (e.g. Bayaran sa katapusan / sweldo)
-            </label>
-            <Input
-              id={notesInputId}
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Pangako bayaran sa Biyernes"
-              className="h-10 bg-white text-sm"
-            />
-          </div>
-
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button
               type="button"
@@ -171,13 +132,13 @@ export function OwedCustomerModal({
             <Button
               type="submit"
               disabled={!customerName.trim() || isProcessing || totalAmount <= 0}
-              className="bg-amber-600 hover:bg-amber-700 text-white gap-2 font-medium"
+              className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 font-medium"
             >
               {isProcessing ? (
                 "Recording..."
               ) : (
                 <>
-                  <span>I-lista ang Utang</span>
+                  <span>Save Credit Sale</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
