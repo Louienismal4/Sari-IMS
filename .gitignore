@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+*.log
+.agents/
+.impeccable/
+.codex/
+.github/agents/
+.github/hooks/
+.github/skills/
+!.github/workflows/
+.env
+.env.*
+!.env.*.example
+!.env.example

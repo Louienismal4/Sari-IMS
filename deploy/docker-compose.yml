@@ -1,0 +1,85 @@
+services:
+  # MySQL Database (Production)
+  mysql:
+    image: mysql:8.0
+    container_name: sari_mysql_prod
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-sari_inventory}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Error: DB_ROOT_PASSWORD must be set in .env}
+      MYSQL_USER: ${DB_USERNAME:-sari_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}
+    volumes:
+      - db_data_prod:/var/lib/mysql
+    networks:
+      - sari_network_prod
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Laravel Backend (Production API)
+  backend:
+    image: ghcr.io/${DOCKER_IMAGE_OWNER:-louienismal4}/sari-ims/backend:${TAG:-latest}
+    container_name: sari_backend_prod
+    restart: always
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:-}
+      APP_URL: ${APP_URL:-https://sari.louienismal.com}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-sari_inventory}
+      DB_USERNAME: ${DB_USERNAME:-sari_user}
+      DB_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sari_network_prod
+
+  # Next.js Frontend (Production Standalone Build)
+  frontend:
+    image: ghcr.io/${DOCKER_IMAGE_OWNER:-louienismal4}/sari-ims/frontend:${TAG:-latest}
+    container_name: sari_frontend_prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: /api
+      INTERNAL_BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - sari_network_prod
+
+  # Caddy Reverse Proxy (Serves Port 80 & Port 443 HTTPS)
+  caddy:
+    image: caddy:alpine
+    container_name: sari_caddy_prod
+    restart: always
+    ports:
+      - "${PORT:-80}:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-sari.louienismal.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data_prod:/data
+      - caddy_config_prod:/config
+    depends_on:
+      - frontend
+    networks:
+      - sari_network_prod
+
+volumes:
+  db_data_prod:
+  caddy_data_prod:
+  caddy_config_prod:
+
+networks:
+  sari_network_prod:
+    driver: bridge

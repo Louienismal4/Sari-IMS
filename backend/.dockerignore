@@ -1,0 +1,11 @@
+vendor
+.env
+.env.*
+bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
+storage/logs/*.log
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+.git
+.phpunit.result.cache

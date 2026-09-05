@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   Smooth Radix UI & Micro-Interaction Keyframes
+   ========================================================================== */
+
+@keyframes overlayShow {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+@keyframes overlayHide {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes contentShow {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes contentHide {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes dropdownShow {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dropdownHide {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+
+@keyframes laserSweep {
+  0% {
+    top: 6%;
+    opacity: 0.85;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 6%;
+    opacity: 0.85;
+  }
+}
+
+@keyframes scanLineGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px #10b981, 0 0 20px #059669;
+  }
+  50% {
+    box-shadow: 0 0 16px #34d399, 0 0 28px #10b981;
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+
+@keyframes toastSwipeOut {
+  from {
+    transform: translateX(var(--radix-toast-swipe-end-x));
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   Radix Animation Bindings
+   ========================================================================== */
+
+.dialog-overlay[data-state="open"] {
+  animation: overlayShow 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.dialog-overlay[data-state="closed"] {
+  animation: overlayHide 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.dialog-content[data-state="open"] {
+  animation: contentShow 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.dialog-content[data-state="closed"] {
+  animation: contentHide 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.dropdown-content[data-state="open"],
+.dropdown-subcontent[data-state="open"] {
+  animation: dropdownShow 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.dropdown-content[data-state="closed"],
+.dropdown-subcontent[data-state="closed"] {
+  animation: dropdownHide 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-root[data-state="open"] {
+  animation: toastSlideIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.toast-root[data-state="closed"] {
+  animation: toastSlideOut 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.toast-root[data-swipe="move"] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+.toast-root[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 200ms ease-out;
+}
+.toast-root[data-swipe="end"] {
+  animation: toastSwipeOut 150ms ease-out forwards;
+}
+
+.animate-laser-sweep {
+  animation: laserSweep 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite, scanLineGlow 2.2s ease-in-out infinite;
+}
+
+/* Accessibility: respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay[data-state="open"],
+  .dialog-overlay[data-state="closed"],
+  .dialog-content[data-state="open"],
+  .dialog-content[data-state="closed"],
+  .dropdown-content[data-state="open"],
+  .dropdown-content[data-state="closed"],
+  .dropdown-subcontent[data-state="open"],
+  .dropdown-subcontent[data-state="closed"],
+  .animate-laser-sweep {
+    animation: none !important;
+    transition: opacity 100ms ease-in-out !important;
+  }
+}

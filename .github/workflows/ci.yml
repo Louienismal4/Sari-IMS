@@ -1,0 +1,116 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ==========================================
+  # 1. LARAVEL BACKEND CI
+  # ==========================================
+  backend-ci:
+    name: Backend (Laravel & MySQL)
+    runs-on: ubuntu-latest
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: sari_inventory_test
+      DB_USERNAME: test_user
+      DB_PASSWORD: test_password
+
+    # Ephemeral MySQL container for running automated tests
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: sari_inventory_test
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -prootpassword" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP Environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, pdo, pdo_mysql, pdo_sqlite, sqlite3, bcmath, json
+          coverage: none
+          tools: composer:v2
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        working-directory: ./backend
+        run: |
+          echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer Dependencies
+        working-directory: ./backend
+        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
+      - name: Setup Testing Environment Configuration
+        working-directory: ./backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Run Database Migrations & Seeders
+        working-directory: ./backend
+        run: php artisan migrate:fresh --seed --force
+
+      - name: Validate API Routes
+        working-directory: ./backend
+        run: php artisan route:list
+
+      - name: Run Tests
+        working-directory: ./backend
+        run: php artisan test
+
+  # ==========================================
+  # 2. NEXT.JS FRONTEND CI
+  # ==========================================
+  frontend-ci:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install NPM Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run Linting
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Run TypeScript Type-Check & Build
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api
+        run: npm run build

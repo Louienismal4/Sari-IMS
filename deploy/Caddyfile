@@ -1,0 +1,40 @@
+# HTTP (Port 80)
+# Redirect domain traffic to HTTPS
+http://{$DOMAIN:sari.louienismal.com} {
+    redir https://{host}{uri} permanent
+}
+
+# Local development fallback
+http://localhost, :80 {
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
+
+# HTTPS (Port 443 with TLS)
+https://{$DOMAIN:sari.louienismal.com}, :443 {
+    tls internal
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
