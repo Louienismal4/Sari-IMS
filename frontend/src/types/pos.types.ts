@@ -46,3 +46,17 @@ export interface PosCheckoutPayload {
     quantity: number;
   }[];
 }
+
+export interface DebtorSummary {
+  debtorKey: string;
+  name: string;
+  phone: string | null;
+  totalDebtsCount: number;
+  unpaidCount: number;
+  paidCount: number;
+  totalUnpaidAmount: number;
+  totalPaidAmount: number;
+  totalAmount: number;
+  latestDebtDate: string;
+  debts: Sale[];
+}

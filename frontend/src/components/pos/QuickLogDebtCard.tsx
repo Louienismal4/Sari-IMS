@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { BookUser, Plus, Minus, Trash2, ShoppingCart, Check, User } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { BookUser, Plus, Minus, Trash2, ShoppingCart, Check, User, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Product } from "@/types/inventory";
+import { cn } from "@/lib/utils";
 
 export interface StagedDebtItem {
   product: Product;
@@ -27,7 +28,7 @@ export function QuickLogDebtCard({
   onSaveDebt,
   isSaving,
 }: QuickLogDebtCardProps) {
-  // Customer Details (Contact and promissory removed per request)
+  // Customer Details
   const [customerName, setCustomerName] = useState("");
 
   // Staged Items (Multi-item support)
@@ -37,23 +38,111 @@ export function QuickLogDebtCard({
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [itemQuantity, setItemQuantity] = useState<number>(1);
   const [productSearch, setProductSearch] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Filter products by optional search text
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter products by search text (name, barcode, category)
   const filteredProducts = useMemo(() => {
-    if (!productSearch.trim()) return products;
-    const q = productSearch.toLowerCase();
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.barcode?.toLowerCase().includes(q) ||
-        p.category?.name.toLowerCase().includes(q)
-    );
+    const q = productSearch.trim().toLowerCase();
+    if (!q) {
+      return [...products]
+        .sort((a, b) => b.stock_quantity - a.stock_quantity)
+        .slice(0, 12);
+    }
+    return products
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.barcode?.toLowerCase().includes(q) ||
+          p.category?.name.toLowerCase().includes(q)
+      )
+      .slice(0, 20);
   }, [products, productSearch]);
 
   // Selected product object
   const currentSelectedProduct = useMemo(() => {
     return products.find((p) => p.id === selectedProductId) || null;
   }, [products, selectedProductId]);
+
+  // Handle product selection from search
+  const handleSelectProduct = (product: Product) => {
+    if (product.stock_quantity <= 0) return;
+    setSelectedProductId(product.id);
+    setProductSearch(product.name);
+    setIsDropdownOpen(false);
+    setItemQuantity(1);
+    setHighlightedIndex(-1);
+  };
+
+  // Handle clearing search / selected product
+  const handleClearSelectedProduct = () => {
+    setSelectedProductId(null);
+    setProductSearch("");
+    setIsDropdownOpen(false);
+    setItemQuantity(1);
+    setHighlightedIndex(-1);
+  };
+
+  // Handle typing in product search input
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setProductSearch(val);
+    setIsDropdownOpen(true);
+    setHighlightedIndex(-1);
+    if (selectedProductId && val !== currentSelectedProduct?.name) {
+      setSelectedProductId(null);
+    }
+  };
+
+  // Keyboard navigation for search input
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      setIsDropdownOpen(false);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isDropdownOpen) {
+        setIsDropdownOpen(true);
+      } else {
+        setHighlightedIndex((prev) =>
+          prev < filteredProducts.length - 1 ? prev + 1 : 0
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev > 0 ? prev - 1 : filteredProducts.length - 1
+      );
+    } else if (e.key === "Enter") {
+      if (isDropdownOpen) {
+        e.preventDefault();
+        const productToSelect =
+          highlightedIndex >= 0 && highlightedIndex < filteredProducts.length
+            ? filteredProducts[highlightedIndex]
+            : filteredProducts.length === 1
+            ? filteredProducts[0]
+            : null;
+
+        if (productToSelect && productToSelect.stock_quantity > 0) {
+          handleSelectProduct(productToSelect);
+        }
+      }
+    }
+  };
 
   // Add currently picked item to staged list
   const handleAddItem = () => {
@@ -79,6 +168,8 @@ export function QuickLogDebtCard({
     setSelectedProductId(null);
     setItemQuantity(1);
     setProductSearch("");
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
   };
 
   // Adjust quantity of an already staged item
@@ -168,6 +259,8 @@ export function QuickLogDebtCard({
     setSelectedProductId(null);
     setItemQuantity(1);
     setProductSearch("");
+    setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
   };
 
   return (
@@ -224,31 +317,115 @@ export function QuickLogDebtCard({
                 Add Items to Credit
               </span>
               <span className="text-[11px] text-zinc-400">
-                You can add multiple items before saving
+                Search item, adjust qty, and add to list
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-              {/* Product Select with stock preview */}
-              <div className="sm:col-span-6 md:col-span-7">
-                <label className="text-[10px] font-semibold text-zinc-500 block mb-1">
-                  Product
-                </label>
-                <select
-                  value={selectedProductId || ""}
-                  onChange={(e) => setSelectedProductId(parseInt(e.target.value) || null)}
-                  className="w-full h-9 px-3 rounded-lg text-xs bg-white border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Choose a store product...</option>
-                  {filteredProducts.map((p) => {
-                    const price = parseFloat(p.selling_price).toFixed(2);
-                    return (
-                      <option key={p.id} value={p.id} disabled={p.stock_quantity <= 0}>
-                        {p.name} — ₱{price} ({p.stock_quantity} {p.unit} left) {p.stock_quantity <= 0 ? "[OUT OF STOCK]" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
+              {/* Product Search Input (replacing dropdown) */}
+              <div className="sm:col-span-6 md:col-span-7 relative" ref={searchContainerRef}>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-semibold text-zinc-500 block">
+                    Product Search
+                  </label>
+                  {currentSelectedProduct && (
+                    <span className="text-[10px] font-mono text-emerald-600 font-semibold truncate max-w-[200px]">
+                      ✓ ₱{parseFloat(currentSelectedProduct.selling_price).toFixed(2)} ({currentSelectedProduct.stock_quantity} left)
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <Input
+                    type="text"
+                    placeholder="Search product by name or barcode..."
+                    value={productSearch}
+                    onChange={handleSearchChange}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    onKeyDown={handleSearchKeyDown}
+                    className="pl-8 pr-8 h-9 text-xs bg-white border-zinc-200 focus-visible:ring-1 focus-visible:ring-zinc-950"
+                  />
+                  {(productSearch || selectedProductId) && (
+                    <button
+                      type="button"
+                      onClick={handleClearSelectedProduct}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-0.5 rounded transition-colors"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Autocomplete Suggestions Dropdown Popover */}
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-zinc-100">
+                    {filteredProducts.length === 0 ? (
+                      <div className="p-3 text-center text-xs text-zinc-400">
+                        No products found matching &quot;{productSearch}&quot;
+                      </div>
+                    ) : (
+                      filteredProducts.map((p, idx) => {
+                        const price = parseFloat(p.selling_price).toFixed(2);
+                        const isOutOfStock = p.stock_quantity <= 0;
+                        const isSelected = selectedProductId === p.id;
+                        const isHighlighted = idx === highlightedIndex;
+
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            disabled={isOutOfStock}
+                            onClick={() => handleSelectProduct(p)}
+                            className={cn(
+                              "w-full text-left p-2.5 flex items-center justify-between text-xs transition-colors",
+                              isSelected ? "bg-zinc-100 font-semibold" : isHighlighted ? "bg-zinc-50" : "hover:bg-zinc-50",
+                              isOutOfStock && "opacity-50 cursor-not-allowed bg-zinc-50/50"
+                            )}
+                          >
+                            <div className="min-w-0 flex-1 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-zinc-900 font-medium truncate">
+                                  {p.name}
+                                </span>
+                                {p.category && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[9px] px-1.5 py-0 text-zinc-500 border-zinc-200 shrink-0 font-normal"
+                                  >
+                                    {p.category.name}
+                                  </Badge>
+                                )}
+                              </div>
+                              {p.barcode && (
+                                <span className="text-[10px] text-zinc-400 font-mono block">
+                                  {p.barcode}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span className="font-mono font-bold text-zinc-900 block">
+                                ₱{price}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-[10px] font-mono",
+                                  isOutOfStock ? "text-rose-500 font-semibold" : "text-zinc-400"
+                                )}
+                              >
+                                {isOutOfStock
+                                  ? "Out of stock"
+                                  : `${p.stock_quantity} ${p.unit} left`}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Quantity Counter */}
