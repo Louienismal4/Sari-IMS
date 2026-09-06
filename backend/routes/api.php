@@ -35,6 +35,18 @@ Route::middleware('throttle:120,1')->group(function () {
     Route::post('/scan-receipt', [ReceiptScanController::class, 'scan'])
         ->middleware('throttle:15,1');
 
+    // POS & Debt ("Utang") Operations
+    Route::post('/pos/checkout', [\App\Http\Controllers\Api\PosController::class, 'checkout']);
+    Route::get('/pos/sales', [\App\Http\Controllers\Api\PosController::class, 'sales']);
+    Route::get('/pos/debts', [\App\Http\Controllers\Api\PosController::class, 'debts']);
+    Route::post('/pos/debts/{sale}/settle', [\App\Http\Controllers\Api\PosController::class, 'settleDebt']);
+
+    // Weekly Stock Audits & Reconciliation
+    Route::get('/audits/sheet', [\App\Http\Controllers\Api\StockAuditController::class, 'sheet']);
+    Route::post('/audits', [\App\Http\Controllers\Api\StockAuditController::class, 'store']);
+    Route::get('/audits', [\App\Http\Controllers\Api\StockAuditController::class, 'index']);
+    Route::get('/audits/{id}', [\App\Http\Controllers\Api\StockAuditController::class, 'show']);
+
     // Database Admin Maintenance
     Route::post('/database/reset', [DatabaseController::class, 'reset'])
         ->middleware('throttle:5,1');

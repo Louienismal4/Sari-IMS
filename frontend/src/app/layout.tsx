@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { InventoryProvider } from "@/context/InventoryContext";
 import { AppShell } from "@/components/layout/AppShell";
@@ -19,6 +19,12 @@ export const metadata: Metadata = {
   description: "Retail ledger, receipt OCR scanner, and profit tracker for sari-sari stores",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#f8fafc",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full bg-slate-50 antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full w-full bg-slate-50 flex flex-col overflow-x-hidden">
         <InventoryProvider>
           <AppShell>{children}</AppShell>
         </InventoryProvider>

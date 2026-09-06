@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   } = useInventory();
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 flex font-sans antialiased">
+    <div className="min-h-screen w-full bg-slate-50 text-zinc-900 flex font-sans antialiased overflow-x-hidden">
       {/* High-Performance Animated Toaster */}
       <Toaster />
 
@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
 
       {/* Dynamic Inner Page Content */}
-      <div className="flex-1 md:pl-64 flex flex-col min-w-0">
+      <div className="flex-1 w-full lg:pl-64 flex flex-col min-w-0 overflow-x-hidden">
         {children}
       </div>
     </div>

@@ -19,7 +19,7 @@ export function TopMarginLeaders({ topMarginProducts }: TopMarginLeadersProps) {
     <Card className="shadow-2xs border-zinc-200">
       <CardHeader className="p-4 pb-3 border-b border-zinc-100">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center">
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
           <div>

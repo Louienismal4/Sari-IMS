@@ -26,6 +26,10 @@ class DatabaseAdminService
         }
 
         Schema::disableForeignKeyConstraints();
+        \App\Models\StockAuditItem::truncate();
+        \App\Models\StockAudit::truncate();
+        \App\Models\SaleItem::truncate();
+        \App\Models\Sale::truncate();
         StockMovement::truncate();
         Product::truncate();
 
