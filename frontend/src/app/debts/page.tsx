@@ -13,13 +13,12 @@ export default function DebtsPage() {
 
   // Debts list state
   const [debts, setDebts] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [settlingId, setSettlingId] = useState<number | null>(null);
   const [savingDebt, setSavingDebt] = useState(false);
 
   // Load debts list
   const loadDebts = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await fetchDebts({ status: "all" });
       setDebts(data);

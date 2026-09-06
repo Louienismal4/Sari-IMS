@@ -10,7 +10,6 @@ import {
   History,
   Phone,
   Layers,
-  Receipt,
   Eye,
   Loader2,
 } from "lucide-react";

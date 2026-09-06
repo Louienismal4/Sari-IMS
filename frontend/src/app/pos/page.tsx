@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Store, ShoppingCart, BookUser, History, RefreshCw } from "lucide-react";
+import { ShoppingCart, BookUser, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PosProductGrid } from "@/components/pos/PosProductGrid";
@@ -48,12 +48,11 @@ export default function PosPage() {
 
   // Debts ledger state
   const [debts, setDebts] = useState<Sale[]>([]);
-  const [loadingDebts, setLoadingDebts] = useState(false);
+  const [loadingDebts, setLoadingDebts] = useState(true);
   const [settlingId, setSettlingId] = useState<number | null>(null);
 
   // Load debts list
   const loadDebts = useCallback(async () => {
-    setLoadingDebts(true);
     try {
       const data = await fetchDebts({ status: "all" });
       setDebts(data);

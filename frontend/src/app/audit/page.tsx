@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ClipboardCheck, History, RefreshCw, Send, CheckCircle2, TrendingUp, Calendar, AlertCircle } from "lucide-react";
+import { ClipboardCheck, History, RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AuditSheetTable } from "@/components/audit/AuditSheetTable";
 import { AuditSummaryReportModal } from "@/components/audit/AuditSummaryReportModal";
@@ -23,17 +23,15 @@ export default function WeeklyStockAuditPage() {
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [discrepancies, setDiscrepancies] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [auditNotes, setAuditNotes] = useState("");
+  const auditNotes = "";
 
   // Post-audit modal & past audits history
   const [completedAudit, setCompletedAudit] = useState<StockAudit | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [pastAudits, setPastAudits] = useState<StockAudit[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Load audit sheet data
   const loadSheet = useCallback(async () => {
-    setLoadingSheet(true);
     try {
       const data = await fetchAuditSheet();
       setSheetData(data);
@@ -54,14 +52,11 @@ export default function WeeklyStockAuditPage() {
 
   // Load past audits history
   const loadHistory = useCallback(async () => {
-    setLoadingHistory(true);
     try {
       const data = await fetchAuditHistory();
       setPastAudits(data);
     } catch (err: unknown) {
       console.error("Failed to load past audits:", err);
-    } finally {
-      setLoadingHistory(false);
     }
   }, []);
 

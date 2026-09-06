@@ -1,28 +1,25 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, CheckCircle2, AlertTriangle, Plus, Minus, Check, ArrowRight } from "lucide-react";
+import { Search, AlertTriangle, Plus, Minus, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { AuditSheetItem } from "@/types/inventory";
 
 interface AuditSheetTableProps {
   items: AuditSheetItem[];
   counts: Record<number, number>;
-  discrepancies: Record<number, string>;
+  discrepancies?: Record<number, string>;
   onCountChange: (productId: number, count: number) => void;
-  onDiscrepancyChange: (productId: number, note: string) => void;
+  onDiscrepancyChange?: (productId: number, note: string) => void;
   onSetAllToExpected: () => void;
 }
 
 export function AuditSheetTable({
   items,
   counts,
-  discrepancies,
   onCountChange,
-  onDiscrepancyChange,
   onSetAllToExpected,
 }: AuditSheetTableProps) {
   const [search, setSearch] = useState("");

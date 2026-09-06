@@ -13,7 +13,6 @@ import {
   Coins,
   TrendingUp,
   Layers,
-  ShoppingCart,
   ClipboardCheck,
   BookUser,
 } from "lucide-react";

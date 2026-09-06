@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
-import { Banknote, CheckCircle2, ArrowRight } from "lucide-react";
+import { useState, useId } from "react";
+import { Banknote, ArrowRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,14 +31,16 @@ export function CashCheckoutModal({
   isProcessing,
 }: CashCheckoutModalProps) {
   const [tenderedInput, setTenderedInput] = useState<string>("");
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const inputId = useId();
 
   // Reset or preset tendered amount when modal opens
-  useEffect(() => {
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setTenderedInput(totalAmount > 0 ? totalAmount.toString() : "");
     }
-  }, [isOpen, totalAmount]);
+  }
 
   const tenderedNumber = parseFloat(tenderedInput) || 0;
   const change = Math.max(0, tenderedNumber - totalAmount);

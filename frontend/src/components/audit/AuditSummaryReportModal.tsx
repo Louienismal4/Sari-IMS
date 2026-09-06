@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, TrendingUp, DollarSign, Package, AlertCircle } from "lucide-react";
+import { CheckCircle2, Package } from "lucide-react";
 import {
   Dialog,
   DialogContent,

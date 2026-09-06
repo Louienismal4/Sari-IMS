@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useId } from "react";
 import { BookUser, ArrowRight, User } from "lucide-react";
 import {
   Dialog,
@@ -35,14 +35,16 @@ export function OwedCustomerModal({
   existingDebtorNames = [],
 }: OwedCustomerModalProps) {
   const [customerName, setCustomerName] = useState("");
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const nameInputId = useId();
 
-  // Reset inputs when opened
-  useEffect(() => {
+  // Reset input when opened
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setCustomerName("");
     }
-  }, [isOpen]);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
