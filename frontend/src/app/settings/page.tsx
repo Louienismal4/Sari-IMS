@@ -5,6 +5,7 @@ import { StoreProfileCard } from "@/components/settings/StoreProfileCard";
 import { CategoryManagerCard } from "@/components/settings/CategoryManagerCard";
 import { UnitManagerCard } from "@/components/settings/UnitManagerCard";
 import { DataManagementCard } from "@/components/settings/DataManagementCard";
+import { ExcelImportCard } from "@/components/settings/ExcelImportCard";
 import { useInventory } from "@/context/InventoryContext";
 
 export default function SettingsPage() {
@@ -61,7 +62,19 @@ export default function SettingsPage() {
         {/* 4. Data Backup, Export & Purge */}
         <DataManagementCard
           products={products}
+          settings={settings}
+          onUpdateSettings={updateSettings}
           onRefreshInventory={refreshInventory}
+          showToast={showToast}
+        />
+
+        {/* 5. Excel / CSV Catalog Import */}
+        <ExcelImportCard
+          categories={categories}
+          existingProducts={products}
+          allUnits={allUnits}
+          onRefreshInventory={refreshInventory}
+          onAddCategory={addCategory}
           showToast={showToast}
         />
       </main>

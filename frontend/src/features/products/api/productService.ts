@@ -35,9 +35,12 @@ export async function deleteProduct(id: number): Promise<void> {
   });
 }
 
-export async function batchStoreProducts(products: Partial<Product>[]): Promise<Product[]> {
+export async function batchStoreProducts(
+  products: Partial<Product>[],
+  updateMode: "replace" | "add" = "replace"
+): Promise<Product[]> {
   return apiClient<Product[]>("/products/batch", {
     method: "POST",
-    body: { products },
+    body: { products, update_mode: updateMode },
   });
 }

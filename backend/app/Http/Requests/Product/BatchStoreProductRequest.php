@@ -14,6 +14,7 @@ class BatchStoreProductRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'update_mode' => 'nullable|string|in:replace,add',
             'products' => 'required|array|min:1',
             'products.*.category_id' => 'nullable|exists:categories,id',
             'products.*.barcode' => 'nullable|string|max:255',
