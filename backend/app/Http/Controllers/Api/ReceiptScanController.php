@@ -42,7 +42,13 @@ class ReceiptScanController extends Controller
 
         try {
             $result = $this->receiptOcrService->processReceipt($base64Data, $mimeType);
-            $quota = $this->scanQuotaService->recordScan($result['totalTokens'], $result['usedModel']);
+            
+            $quota = null;
+            try {
+                $quota = $this->scanQuotaService->recordScan($result['totalTokens'], $result['usedModel']);
+            } catch (\Exception $quotaEx) {
+                \Illuminate\Support\Facades\Log::warning('Scan quota recording skipped: ' . $quotaEx->getMessage());
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -51,9 +57,15 @@ class ReceiptScanController extends Controller
                 'data' => $result['items'],
                 'quota' => $quota,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Receipt OCR failure: ' . $e->getMessage());
-            return $this->error('Failed to process receipt with AI. Please verify image clarity and try again.', 500);
+
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'Gemini API key') || str_contains($msg, 'GEMINI_API_KEY')) {
+                return $this->error('Gemini API key is not configured on this server. Please add GEMINI_API_KEY to your .env file and restart.', 503);
+            }
+
+            return $this->error('Receipt scan failed: ' . $msg, 500);
         }
     }
 
