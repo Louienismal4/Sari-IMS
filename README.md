@@ -35,36 +35,53 @@ Sari-IMS/
 
 ---
 
-## 🛠️ Local Development
+## ⚡ Quick Start (One-Click Setup & Launch)
 
-In local development, the source code in `backend/` and `frontend/` is live-mounted into Docker containers for instant hot reloading.
+To run the entire system locally with zero configuration:
 
-### 1. Start the Dev Stack
-```bash
-./dev.sh start
-# or: docker compose up -d
-```
+1. **Clone or download the repository / package**
+2. **Run the startup script:**
+   - **macOS / Linux:**
+     ```bash
+     ./start.sh
+     ```
+   - **Windows:** Double-click `start.bat` (or run `.\start.bat` in PowerShell/CMD)
 
-### 2. Dev Endpoints
-| Service | URL | Notes |
-| :--- | :--- | :--- |
-| **Frontend** | [http://localhost:3001](http://localhost:3001) | Next.js with Fast Refresh |
-| **Backend API** | [http://localhost:8000](http://localhost:8000) | Laravel API server |
-| **MySQL** | `localhost:3306` | Accessible via TablePlus / DBeaver (`lwui` / `Water123!`) |
-
-### 3. Local CLI Helper (`./dev.sh`)
-| Command | Description | Example |
-| :--- | :--- | :--- |
-| `./dev.sh start` | Launch development containers in background | `./dev.sh start` |
-| `./dev.sh stop` | Stop development containers | `./dev.sh stop` |
-| `./dev.sh restart` | Restart development containers | `./dev.sh restart` |
-| `./dev.sh logs` | View live container logs | `./dev.sh logs frontend` |
-| `./dev.sh status` | View container health & status | `./dev.sh status` |
-| `./dev.sh migrate` | Run database migrations in backend container | `./dev.sh migrate` |
-| `./dev.sh artisan <cmd>` | Execute Laravel artisan command | `./dev.sh artisan route:list` |
-| `./dev.sh shell [service]` | Open a shell in a dev container | `./dev.sh shell backend` |
+The script automatically:
+- Checks Docker and starts the daemon if needed
+- Generates `.env` and application encryption keys
+- Builds and starts all containers (MySQL, Laravel API, Next.js Frontend)
+- Runs database migrations
+- Pre-populates starter store inventory items (noodles, coffee, canned goods, snacks)
+- **Automatically launches your browser to `http://localhost:3001`**, loaded and ready to use!
 
 ---
+
+## 🛠️ Service Endpoints & Management
+
+### Endpoints
+| Service | URL | Notes |
+| :--- | :--- | :--- |
+| **Frontend POS & App** | [http://localhost:3001](http://localhost:3001) | Next.js with Fast Refresh (auto-opened) |
+| **Backend API** | [http://localhost:8000](http://localhost:8000) | Laravel API server |
+| **MySQL Database** | `localhost:3306` | Accessible via TablePlus / DBeaver (`lwui` / `Water123!`) |
+
+### CLI Management (`./start.sh` or `./dev.sh`)
+| Command | Description | Example |
+| :--- | :--- | :--- |
+| `./start.sh` | One-click start, initialize, seed & open browser | `./start.sh` |
+| `./start.sh stop` | Stop all containers | `./start.sh stop` |
+| `./start.sh restart` | Restart all containers | `./start.sh restart` |
+| `./start.sh logs [service]` | View live container logs | `./start.sh logs frontend` |
+| `./start.sh status` | View container health & status | `./start.sh status` |
+| `./start.sh seed` | Re-seed starter catalog items | `./start.sh seed` |
+| `./start.sh reset` | Fresh database migration and re-seed | `./start.sh reset` |
+| `./start.sh open` | Re-open the app in default browser | `./start.sh open` |
+| `./start.sh artisan <cmd>` | Execute Laravel artisan command | `./start.sh artisan route:list` |
+| `./start.sh shell [service]` | Open interactive shell in container | `./start.sh shell backend` |
+
+---
+
 
 ## 🚀 Automated CI/CD & Production Deployment
 

@@ -18,9 +18,15 @@ if [ -n "$DB_HOST" ]; then
     done
 fi
 
-# Cache configuration & routes in production if APP_KEY exists
-if [ -n "$APP_KEY" ]; then
-    echo "Optimizing Laravel configuration & routes..."
+# Ensure composer vendor directory exists if shadowed by a host mount
+if [ ! -f "vendor/autoload.php" ]; then
+    echo "Vendor autoload not found. Installing composer dependencies..."
+    composer install --no-dev --no-interaction --prefer-dist --no-progress
+fi
+
+# Cache configuration & routes ONLY in production
+if [ "$APP_ENV" = "production" ] && [ -n "$APP_KEY" ]; then
+    echo "Optimizing Laravel configuration & routes for production..."
     php artisan config:cache || true
     php artisan route:cache || true
     php artisan view:cache || true
@@ -30,6 +36,11 @@ fi
 echo "Running database migrations..."
 php artisan migrate --force || true
 
+# Seed database with initial catalog
+echo "Seeding starter store inventory..."
+php artisan db:seed --force || true
+
 # Start server
 echo "Starting Laravel server on port 8000..."
 exec php artisan serve --host=0.0.0.0 --port=8000
+
