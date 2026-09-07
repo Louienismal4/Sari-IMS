@@ -122,9 +122,16 @@ ensure_env() {
     echo -e "${GREEN}✓ Application key generated.${NC}"
   fi
 
-  # Ensure backend/.env exists
+  # Ensure DB_CONNECTION is set to mysql
+  if ! grep -q "^DB_CONNECTION=" "$ENV_FILE"; then
+    echo "DB_CONNECTION=mysql" >> "$ENV_FILE"
+  fi
+
+  # Ensure backend/.env exists and has DB_CONNECTION=mysql
   if [ ! -f "backend/.env" ]; then
     cp "$ENV_FILE" "backend/.env" 2>/dev/null || true
+  elif ! grep -q "^DB_CONNECTION=" "backend/.env"; then
+    echo "DB_CONNECTION=mysql" >> "backend/.env"
   fi
 
   # Ensure frontend/.env exists
