@@ -50,4 +50,9 @@ Route::middleware('throttle:120,1')->group(function () {
     // Database Admin Maintenance
     Route::post('/database/reset', [DatabaseController::class, 'reset'])
         ->middleware('throttle:5,1');
+
+    // Full Instance Backup & Restore
+    Route::get('/backup/export', [\App\Http\Controllers\Api\BackupController::class, 'export']);
+    Route::post('/backup/restore', [\App\Http\Controllers\Api\BackupController::class, 'restore'])
+        ->middleware('throttle:10,1');
 });

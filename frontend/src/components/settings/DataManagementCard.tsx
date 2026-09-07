@@ -1,41 +1,76 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileJson, FileSpreadsheet, Trash2, ShieldAlert } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet, Trash2, ShieldAlert, UploadCloud } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { PurgeDatabaseModal } from "@/components/settings/PurgeDatabaseModal";
-import { Product } from "@/types/inventory";
+import { RestoreBackupModal } from "@/components/settings/RestoreBackupModal";
+import { exportInstanceBackupApi } from "@/features/settings/api/databaseAdminService";
+import { Product, StoreSettings } from "@/types/inventory";
 
 interface DataManagementCardProps {
   products: Product[];
+  settings?: StoreSettings;
+  onUpdateSettings?: (settings: StoreSettings) => void;
   onRefreshInventory: () => Promise<void>;
   showToast: (msg: string, type?: "success" | "error" | "info" | "warning") => void;
 }
 
 export function DataManagementCard({
   products,
+  settings,
+  onUpdateSettings,
   onRefreshInventory,
   showToast,
 }: DataManagementCardProps) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Export JSON
-  const handleExportJSON = () => {
+  // Export Full Instance Snapshot (all products, categories, stock, unit prices, settings, sales)
+  const handleExportFullInstance = async () => {
+    setIsExporting(true);
     try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
+      const backupData = await exportInstanceBackupApi(settings);
+      const dataStr =
+        "data:text/json;charset=utf-8," +
+        encodeURIComponent(JSON.stringify(backupData, null, 2));
       const downloadAnchor = document.createElement("a");
       const timestamp = new Date().toISOString().slice(0, 10);
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `sari_inventory_backup_${timestamp}.json`);
+      downloadAnchor.setAttribute(
+        "download",
+        `sari_full_instance_backup_${timestamp}.json`
+      );
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      showToast(`Exported ${products.length} products to JSON backup!`, "success");
-    } catch {
-      showToast("Failed to export inventory JSON.", "error");
+      showToast(
+        "Exported complete store instance backup (products, stocks, unit prices, categories, & sales)!",
+        "success"
+      );
+    } catch (err: unknown) {
+      console.error("Failed to export full instance backup, using catalog fallback:", err);
+      // Fallback to client-side catalog dump if backend endpoint fails
+      const dataStr =
+        "data:text/json;charset=utf-8," +
+        encodeURIComponent(JSON.stringify(products, null, 2));
+      const downloadAnchor = document.createElement("a");
+      const timestamp = new Date().toISOString().slice(0, 10);
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute(
+        "download",
+        `sari_inventory_backup_${timestamp}.json`
+      );
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast(`Exported ${products.length} products to JSON backup!`, "info");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -119,27 +154,38 @@ export function DataManagementCard({
 
         <CardContent className="p-4 sm:p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Export JSON */}
+            {/* Full Instance Backup & Restore */}
             <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 flex flex-col justify-between space-y-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 font-semibold text-xs text-zinc-900">
-                  <FileJson className="w-4 h-4 text-amber-600" />
-                  <span>JSON Database Backup</span>
+                  <FileJson className="w-4 h-4 text-blue-600" />
+                  <span>Full Instance Backup (JSON)</span>
                 </div>
                 <p className="text-[11px] text-zinc-500">
-                  Download a complete raw JSON file of all {products.length} registered products and metadata.
+                  Complete snapshot of your store: products, stocks, unit prices, categories, custom units, sales, &amp; debt records.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportJSON}
-                disabled={products.length === 0}
-                className="w-full text-xs gap-1.5 bg-white min-h-[36px]"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export JSON</span>
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportFullInstance}
+                  disabled={isExporting}
+                  className="text-xs gap-1.5 bg-white min-h-[36px]"
+                >
+                  <Download className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>{isExporting ? "Exporting..." : "Export Backup"}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsRestoreModalOpen(true)}
+                  className="text-xs gap-1.5 bg-white border-blue-200 text-blue-800 hover:bg-blue-50 min-h-[36px]"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Restore Backup</span>
+                </Button>
+              </div>
             </div>
 
             {/* Export CSV */}
@@ -230,6 +276,15 @@ export function DataManagementCard({
         isOpen={isPurgeModalOpen}
         onOpenChange={setIsPurgeModalOpen}
         onSuccess={handlePurgeSuccess}
+      />
+
+      {/* Restore Backup Modal */}
+      <RestoreBackupModal
+        isOpen={isRestoreModalOpen}
+        onOpenChange={setIsRestoreModalOpen}
+        onUpdateSettings={onUpdateSettings}
+        onRefreshInventory={onRefreshInventory}
+        showToast={showToast}
       />
     </>
   );

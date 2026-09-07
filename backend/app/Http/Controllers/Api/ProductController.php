@@ -42,7 +42,11 @@ class ProductController extends Controller
 
     public function batchStore(BatchStoreProductRequest $request): JsonResponse
     {
-        $products = $this->productService->batchStoreProducts($request->validated('products'));
+        $updateMode = $request->input('update_mode', 'replace');
+        $products = $this->productService->batchStoreProducts(
+            $request->validated('products'),
+            $updateMode
+        );
         $count = count($products);
 
         return $this->created(

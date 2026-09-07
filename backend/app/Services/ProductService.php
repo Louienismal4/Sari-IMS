@@ -48,19 +48,36 @@ class ProductService
     /**
      * Batch store/upsert products inside a single database transaction.
      */
-    public function batchStoreProducts(array $items): array
+    public function batchStoreProducts(array $items, string $updateMode = 'replace'): array
     {
         $processed = [];
 
-        DB::transaction(function () use ($items, &$processed) {
+        DB::transaction(function () use ($items, $updateMode, &$processed) {
             foreach ($items as $item) {
                 if (!empty($item['barcode'])) {
-                    $existing = Product::where('barcode', $item['barcode'])->first();
+                    $cleanBarcode = trim($item['barcode']);
+                    $existing = Product::where('barcode', $cleanBarcode)->first();
                     if ($existing) {
-                        $existing->stock_quantity += ($item['stock_quantity'] ?? 1);
+                        if ($updateMode === 'add') {
+                            $existing->stock_quantity += ($item['stock_quantity'] ?? 0);
+                        } else {
+                            $existing->stock_quantity = ($item['stock_quantity'] ?? $existing->stock_quantity);
+                        }
+                        if (!empty($item['name'])) {
+                            $existing->name = $item['name'];
+                        }
                         $existing->cost_price = $item['cost_price'];
                         $existing->selling_price = $item['selling_price'];
-                        if (!empty($item['original_name']) && empty($existing->original_name)) {
+                        if (!empty($item['unit'])) {
+                            $existing->unit = $item['unit'];
+                        }
+                        if (isset($item['category_id'])) {
+                            $existing->category_id = $item['category_id'];
+                        }
+                        if (isset($item['reorder_level'])) {
+                            $existing->reorder_level = $item['reorder_level'];
+                        }
+                        if (!empty($item['original_name'])) {
                             $existing->original_name = $item['original_name'];
                         }
                         $existing->save();
