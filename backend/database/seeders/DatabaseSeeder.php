@@ -38,10 +38,26 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($categories as $catName => $products) {
-            $category = Category::create(['name' => $catName]);
+            $category = Category::firstOrCreate(['name' => $catName]);
 
             foreach ($products as $prod) {
-                $category->products()->create($prod);
+                $product = !empty($prod['barcode'])
+                    ? Product::firstOrCreate(
+                        ['barcode' => $prod['barcode']],
+                        array_merge($prod, ['category_id' => $category->id])
+                    )
+                    : Product::firstOrCreate(
+                        ['name' => $prod['name']],
+                        array_merge($prod, ['category_id' => $category->id])
+                    );
+
+                if ($product->wasRecentlyCreated && $product->stock_quantity > 0) {
+                    $product->stockMovements()->create([
+                        'type' => 'restock',
+                        'quantity_change' => $product->stock_quantity,
+                        'notes' => 'Initial starter inventory setup',
+                    ]);
+                }
             }
         }
     }
