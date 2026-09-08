@@ -1,4 +1,17 @@
 import type { NextConfig } from "next";
+import path from "path";
+import fs from "fs";
+
+// Load centralized root .env when running Next.js locally outside Docker
+const rootEnvPath = path.resolve(__dirname, "../.env");
+const nodeProcess = process as typeof process & { loadEnvFile?: (path: string) => void };
+if (fs.existsSync(rootEnvPath) && typeof nodeProcess.loadEnvFile === "function") {
+  try {
+    nodeProcess.loadEnvFile(rootEnvPath);
+  } catch {
+    // Silently ignore if already loaded or duplicate
+  }
+}
 
 const nextConfig: NextConfig = {
   // Standalone output is only required for Docker container builds, not on Vercel

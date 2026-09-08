@@ -36,17 +36,13 @@ if not exist ".env" (
     )
 )
 
-REM 3. Ensure backend/.env and frontend/.env
-if not exist "backend\.env" (
-    copy .env backend\.env >nul 2>nul
-)
-if not exist "frontend\.env" (
-    echo NEXT_PUBLIC_API_URL=/api> frontend\.env
-)
+REM 3. Ensure clean single-env environment
+if exist "backend\.env" del /f /q "backend\.env" >nul 2>nul
+if exist "frontend\.env" del /f /q "frontend\.env" >nul 2>nul
+
 
 REM Clean any stale host cache
-if exist "backend\bootstrap\cache\config.php" del /f /q "backend\bootstrap\cache\config.php" >nul 2>nul
-if exist "backend\bootstrap\cache\routes-v7.php" del /f /q "backend\bootstrap\cache\routes-v7.php" >nul 2>nul
+if exist "backend\bootstrap\cache\*.php" del /f /q "backend\bootstrap\cache\*.php" >nul 2>nul
 
 REM 4. Start Containers
 echo [*] Building and starting Docker containers...

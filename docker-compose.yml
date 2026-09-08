@@ -28,23 +28,14 @@ services:
       dockerfile: Dockerfile
     container_name: sari_backend
     restart: always
+    env_file:
+      - .env
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/var/www/html
       - /var/www/html/vendor
-    environment:
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_KEY: ${APP_KEY:-}
-      APP_URL: ${APP_URL:-http://localhost:8000}
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-sari_inventory}
-      DB_USERNAME: ${DB_USERNAME:-sari_user}
-      DB_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      - ./.env:/var/www/html/.env
     depends_on:
       mysql:
         condition: service_healthy
@@ -59,15 +50,16 @@ services:
       target: dev
     container_name: sari_frontend
     restart: always
+    env_file:
+      - .env
     ports:
       - "${FRONTEND_PORT:-3001}:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
+      - ./.env:/app/.env.local:ro
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api}
-      - INTERNAL_BACKEND_URL=${INTERNAL_BACKEND_URL:-http://backend:8000}
       - WATCHPACK_POLLING=true
     depends_on:
       - backend

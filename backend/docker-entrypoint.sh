@@ -4,6 +4,7 @@ set -e
 # Ensure storage directories exist and have proper permissions
 mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
 chmod -R 775 storage bootstrap/cache || true
+rm -f bootstrap/cache/*.php 2>/dev/null || true
 
 # Wait for MySQL if DB_HOST is set
 if [ -n "$DB_HOST" ]; then

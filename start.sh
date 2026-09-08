@@ -127,20 +127,11 @@ ensure_env() {
     echo "DB_CONNECTION=mysql" >> "$ENV_FILE"
   fi
 
-  # Ensure backend/.env exists and has DB_CONNECTION=mysql
-  if [ ! -f "backend/.env" ]; then
-    cp "$ENV_FILE" "backend/.env" 2>/dev/null || true
-  elif ! grep -q "^DB_CONNECTION=" "backend/.env"; then
-    echo "DB_CONNECTION=mysql" >> "backend/.env"
-  fi
+  # Remove legacy duplicate env files to guarantee single centralized source of truth
+  rm -f backend/.env frontend/.env 2>/dev/null || true
 
-  # Ensure frontend/.env exists
-  if [ ! -f "frontend/.env" ]; then
-    echo "NEXT_PUBLIC_API_URL=/api" > "frontend/.env"
-  fi
-
-  # Clean any stale config cache on host that may interfere with mounting
-  rm -f backend/bootstrap/cache/config.php backend/bootstrap/cache/routes-v7.php 2>/dev/null || true
+  # Clean any stale config/package cache on host that may interfere with mounting
+  rm -f backend/bootstrap/cache/*.php 2>/dev/null || true
 }
 
 # Helper: Get configured ports
