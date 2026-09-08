@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DatabaseController;
+use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReceiptScanController;
 use App\Http\Controllers\Api\StockMovementController;
@@ -12,6 +13,15 @@ Route::get('/health', function () {
 });
 
 Route::middleware('throttle:120,1')->group(function () {
+    // System Onboarding & Environment Setup
+    Route::get('/onboarding/status', [OnboardingController::class, 'status']);
+    Route::post('/onboarding/test-db', [OnboardingController::class, 'testDb'])
+        ->middleware('throttle:15,1');
+    Route::post('/onboarding/test-gemini', [OnboardingController::class, 'testGemini'])
+        ->middleware('throttle:15,1');
+    Route::post('/onboarding/setup', [OnboardingController::class, 'setup'])
+        ->middleware('throttle:10,1');
+
     // Categories
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::post('/categories', [CategoryController::class, 'store']);

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StoreSettings } from "@/types/inventory";
+import { SUPPORTED_CURRENCIES } from "@/constants/defaults";
 
 interface StoreProfileCardProps {
   settings: StoreSettings;
@@ -15,6 +16,9 @@ interface StoreProfileCardProps {
 export function StoreProfileCard({ settings, onSave }: StoreProfileCardProps) {
   const [formState, setFormState] = useState<StoreSettings>(settings);
   const [saved, setSaved] = useState(false);
+  const [isCustomCurrency, setIsCustomCurrency] = useState(
+    () => !SUPPORTED_CURRENCIES.some((c) => c.symbol === (settings.currency_symbol || "₱"))
+  );
 
   const storeNameId = useId();
   const ownerNameId = useId();
@@ -85,17 +89,39 @@ export function StoreProfileCard({ settings, onSave }: StoreProfileCardProps) {
             {/* Currency Symbol */}
             <div className="space-y-1">
               <label htmlFor={currencyId} className="text-xs font-semibold text-zinc-700 flex items-center justify-between">
-                <span>Currency Symbol</span>
+                <span>Currency</span>
                 <Coins className="w-3 h-3 text-zinc-400" />
               </label>
-              <Input
+              <select
                 id={currencyId}
-                type="text"
-                value={formState.currency_symbol}
-                onChange={(e) => setFormState({ ...formState, currency_symbol: e.target.value })}
-                placeholder="₱"
-                className="font-mono text-xs"
-              />
+                value={isCustomCurrency ? "CUSTOM" : formState.currency_symbol}
+                onChange={(e) => {
+                  if (e.target.value === "CUSTOM") {
+                    setIsCustomCurrency(true);
+                  } else {
+                    setIsCustomCurrency(false);
+                    setFormState({ ...formState, currency_symbol: e.target.value });
+                  }
+                }}
+                className="flex h-8 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 cursor-pointer"
+              >
+                {SUPPORTED_CURRENCIES.map((curr) => (
+                  <option key={curr.code} value={curr.symbol}>
+                    {curr.name}
+                  </option>
+                ))}
+                <option value="CUSTOM">Custom symbol...</option>
+              </select>
+              {isCustomCurrency && (
+                <Input
+                  type="text"
+                  value={formState.currency_symbol}
+                  onChange={(e) => setFormState({ ...formState, currency_symbol: e.target.value })}
+                  placeholder="e.g. BTC or kr"
+                  className="mt-1.5 font-mono text-xs"
+                  autoFocus
+                />
+              )}
             </div>
 
             {/* Default Target Markup */}

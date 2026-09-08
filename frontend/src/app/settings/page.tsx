@@ -2,6 +2,7 @@
 
 import { AppHeader } from "@/components/layout/AppHeader";
 import { StoreProfileCard } from "@/components/settings/StoreProfileCard";
+import { SystemConfigCard } from "@/components/settings/SystemConfigCard";
 import { CategoryManagerCard } from "@/components/settings/CategoryManagerCard";
 import { UnitManagerCard } from "@/components/settings/UnitManagerCard";
 import { DataManagementCard } from "@/components/settings/DataManagementCard";
@@ -42,7 +43,10 @@ export default function SettingsPage() {
           }}
         />
 
-        {/* 2. Category Management Hub */}
+        {/* 2. System & Environment Configuration */}
+        <SystemConfigCard showToast={showToast} />
+
+        {/* 3. Category Management Hub */}
         <CategoryManagerCard
           categories={categories}
           onAddCategory={addCategory}
