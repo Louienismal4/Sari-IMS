@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Exception;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -72,6 +73,90 @@ class OnboardingService
     }
 
     /**
+     * Ensure the target MySQL database exists and candidate user has permissions.
+     * If candidate credentials cannot connect, attempts to use root credentials to auto-provision.
+     *
+     * @return array{connected: bool, provisioned: bool, message: string}
+     */
+    public function ensureDatabaseAndUser(
+        string $host,
+        int $port,
+        string $database,
+        string $username,
+        string $password
+    ): array {
+        $cleanDb = preg_replace('/[^a-zA-Z0-9_]/', '', $database);
+        if (empty($cleanDb)) {
+            $cleanDb = 'sari_inventory';
+        }
+
+        // 1. First test if candidate credentials already connect
+        try {
+            $dsn = "mysql:host={$host};port={$port};dbname={$cleanDb};charset=utf8mb4";
+            $pdo = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_TIMEOUT => 4,
+            ]);
+            $stmt = $pdo->query("SELECT 1");
+            $stmt->fetch();
+
+            return [
+                'connected' => true,
+                'provisioned' => false,
+                'message' => "Successfully connected to database '{$cleanDb}' as '{$username}'.",
+            ];
+        } catch (\Throwable $candidateError) {
+            // Candidate credentials failed. Try auto-provisioning via root.
+        }
+
+        // 2. Attempt connection as root to auto-provision database and user
+        $envValues = $this->envManager->getValues();
+        $rootPassword = $envValues['DB_ROOT_PASSWORD'] ?? env('DB_ROOT_PASSWORD', 'Water123!');
+
+        try {
+            $rootDsn = "mysql:host={$host};port={$port};charset=utf8mb4";
+            $rootPdo = new PDO($rootDsn, 'root', $rootPassword, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_TIMEOUT => 4,
+            ]);
+
+            // Create database if missing
+            $rootPdo->exec("CREATE DATABASE IF NOT EXISTS `{$cleanDb}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+            // Create or update user
+            $escapedUser = str_replace("'", "\\'", $username);
+            $escapedPass = str_replace("'", "\\'", $password);
+
+            $rootPdo->exec("CREATE USER IF NOT EXISTS '{$escapedUser}'@'%' IDENTIFIED BY '{$escapedPass}'");
+            $rootPdo->exec("ALTER USER '{$escapedUser}'@'%' IDENTIFIED BY '{$escapedPass}'");
+            $rootPdo->exec("GRANT ALL PRIVILEGES ON `{$cleanDb}`.* TO '{$escapedUser}'@'%'");
+            $rootPdo->exec("FLUSH PRIVILEGES");
+
+            // Verify the newly provisioned credentials now connect
+            $verifyDsn = "mysql:host={$host};port={$port};dbname={$cleanDb};charset=utf8mb4";
+            $verifyPdo = new PDO($verifyDsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_TIMEOUT => 4,
+            ]);
+            $stmt = $verifyPdo->query("SELECT 1");
+            $stmt->fetch();
+
+            return [
+                'connected' => true,
+                'provisioned' => true,
+                'message' => "Database '{$cleanDb}' and user '{$username}' were successfully provisioned on {$host}:{$port}.",
+            ];
+        } catch (\Throwable $rootError) {
+            $candidateMsg = isset($candidateError) ? $candidateError->getMessage() : 'Access denied';
+            return [
+                'connected' => false,
+                'provisioned' => false,
+                'message' => "Could not connect as '{$username}': {$candidateMsg}. Auto-provisioning failed: " . $rootError->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Test a candidate MySQL database connection with short timeout.
      *
      * @param array{host: string, port: int|string, database: string, username: string, password?: string} $params
@@ -85,6 +170,7 @@ class OnboardingService
         $username = $params['username'] ?? 'lwui';
         $password = (string) ($params['password'] ?? '');
 
+        // Test direct connection first
         try {
             $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
             $options = [
@@ -101,11 +187,29 @@ class OnboardingService
                 'success' => true,
                 'message' => "Connection established successfully to MySQL database '{$database}' on {$host}:{$port}.",
             ];
-        } catch (PDOException $e) {
-            return [
-                'success' => false,
-                'message' => "Database connection failed: " . $e->getMessage(),
-            ];
+        } catch (PDOException $candidateError) {
+            // Check if root is available to auto-create database/user on save
+            $envValues = $this->envManager->getValues();
+            $rootPassword = $envValues['DB_ROOT_PASSWORD'] ?? env('DB_ROOT_PASSWORD', 'Water123!');
+            try {
+                $rootDsn = "mysql:host={$host};port={$port};charset=utf8mb4";
+                $rootPdo = new PDO($rootDsn, 'root', $rootPassword, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_TIMEOUT => 4,
+                ]);
+                $stmt = $rootPdo->query("SELECT 1");
+                $stmt->fetch();
+
+                return [
+                    'success' => true,
+                    'message' => "MySQL host is reachable! Database '{$database}' and user '{$username}' will be automatically created and configured during setup.",
+                ];
+            } catch (\Throwable) {
+                return [
+                    'success' => false,
+                    'message' => "Database connection failed: " . $candidateError->getMessage(),
+                ];
+            }
         } catch (Exception $e) {
             return [
                 'success' => false,
@@ -166,11 +270,48 @@ class OnboardingService
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
+     * @throws Exception
      */
     public function completeOnboarding(array $data): array
     {
+        $dbHost = !empty($data['db_host']) ? trim($data['db_host']) : 'mysql';
+        $dbPort = !empty($data['db_port']) ? (int) $data['db_port'] : 3306;
+        $dbDatabase = !empty($data['db_database']) ? trim($data['db_database']) : 'sari_inventory';
+        $dbUsername = !empty($data['db_username']) ? trim($data['db_username']) : 'lwui';
+        $dbPassword = isset($data['db_password']) ? (string) $data['db_password'] : '';
+
+        // 1. Ensure database exists and user has full permissions (auto-provisioning via root if needed)
+        $dbStatus = $this->ensureDatabaseAndUser($dbHost, $dbPort, $dbDatabase, $dbUsername, $dbPassword);
+        if (!$dbStatus['connected']) {
+            throw new Exception("Database verification failed: " . $dbStatus['message']);
+        }
+
+        // 2. Configure runtime database connection and run migrations
+        config([
+            'database.connections.mysql.host' => $dbHost,
+            'database.connections.mysql.port' => $dbPort,
+            'database.connections.mysql.database' => $dbDatabase,
+            'database.connections.mysql.username' => $dbUsername,
+            'database.connections.mysql.password' => $dbPassword,
+        ]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            Artisan::call('db:seed', ['--force' => true]);
+        } catch (\Throwable $migrationError) {
+            Log::warning("Initial migration/seeding notice: " . $migrationError->getMessage());
+        }
+
+        // 3. Prepare updates for .env
         $updates = [
             'APP_ONBOARDED' => 'true',
+            'DB_HOST' => $dbHost,
+            'DB_PORT' => $dbPort,
+            'DB_DATABASE' => $dbDatabase,
+            'DB_USERNAME' => $dbUsername,
+            'DB_PASSWORD' => $dbPassword,
         ];
 
         if (!empty($data['store_name'])) {
@@ -179,26 +320,6 @@ class OnboardingService
 
         if (array_key_exists('gemini_api_key', $data)) {
             $updates['GEMINI_API_KEY'] = trim((string) $data['gemini_api_key']);
-        }
-
-        if (!empty($data['db_host'])) {
-            $updates['DB_HOST'] = trim($data['db_host']);
-        }
-
-        if (!empty($data['db_port'])) {
-            $updates['DB_PORT'] = (int) $data['db_port'];
-        }
-
-        if (!empty($data['db_database'])) {
-            $updates['DB_DATABASE'] = trim($data['db_database']);
-        }
-
-        if (!empty($data['db_username'])) {
-            $updates['DB_USERNAME'] = trim($data['db_username']);
-        }
-
-        if (isset($data['db_password'])) {
-            $updates['DB_PASSWORD'] = (string) $data['db_password'];
         }
 
         // Apply changes to .env

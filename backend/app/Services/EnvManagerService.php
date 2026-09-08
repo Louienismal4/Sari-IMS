@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class EnvManagerService
@@ -159,6 +160,12 @@ class EnvManagerService
      */
     protected function syncRuntimeConfig(array $updates): void
     {
+        foreach ($updates as $key => $val) {
+            putenv("{$key}={$val}");
+            $_ENV[$key] = (string) $val;
+            $_SERVER[$key] = (string) $val;
+        }
+
         if (isset($updates['GEMINI_API_KEY'])) {
             config(['services.gemini.api_key' => (string) $updates['GEMINI_API_KEY']]);
         }
@@ -170,6 +177,27 @@ class EnvManagerService
         }
         if (isset($updates['APP_ONBOARDED'])) {
             config(['app.onboarded' => filter_var($updates['APP_ONBOARDED'], FILTER_VALIDATE_BOOLEAN)]);
+        }
+
+        if (isset($updates['DB_HOST'])) {
+            config(['database.connections.mysql.host' => (string) $updates['DB_HOST']]);
+        }
+        if (isset($updates['DB_PORT'])) {
+            config(['database.connections.mysql.port' => (int) $updates['DB_PORT']]);
+        }
+        if (isset($updates['DB_DATABASE'])) {
+            config(['database.connections.mysql.database' => (string) $updates['DB_DATABASE']]);
+        }
+        if (isset($updates['DB_USERNAME'])) {
+            config(['database.connections.mysql.username' => (string) $updates['DB_USERNAME']]);
+        }
+        if (isset($updates['DB_PASSWORD'])) {
+            config(['database.connections.mysql.password' => (string) $updates['DB_PASSWORD']]);
+        }
+
+        try {
+            DB::purge('mysql');
+        } catch (\Throwable) {
         }
 
         try {

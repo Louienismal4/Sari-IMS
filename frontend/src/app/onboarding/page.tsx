@@ -436,8 +436,7 @@ function OnboardingForm() {
                 </Button>
               </div>
               <CardDescription className="text-xs text-zinc-500">
-                Default Docker MySQL credentials are pre-configured. Edit only
-                if using external MySQL.
+                Pre-configured for local Docker (user: <code className="font-mono text-zinc-700">lwui</code>, db: <code className="font-mono text-zinc-700">sari_inventory</code>). Custom databases &amp; users are automatically provisioned.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-5 space-y-3">
@@ -532,18 +531,18 @@ function OnboardingForm() {
 
               {dbTestResult && (
                 <div
-                  className={`text-xs p-2 rounded border flex items-center gap-1.5 font-mono ${
+                  className={`text-xs p-2 rounded border flex items-start gap-1.5 font-mono ${
                     dbTestResult.success
                       ? "bg-zinc-100 border-zinc-300 text-zinc-900"
                       : "bg-zinc-100 border-zinc-400 text-zinc-900"
                   }`}
                 >
                   {dbTestResult.success ? (
-                    <Check className="w-3.5 h-3.5 text-zinc-900 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-zinc-900 shrink-0 mt-0.5" />
                   ) : (
-                    <AlertCircle className="w-3.5 h-3.5 text-zinc-900 shrink-0" />
+                    <AlertCircle className="w-3.5 h-3.5 text-zinc-900 shrink-0 mt-0.5" />
                   )}
-                  <span className="truncate">{dbTestResult.message}</span>
+                  <span className="text-xs leading-relaxed">{dbTestResult.message}</span>
                 </div>
               )}
             </CardContent>

@@ -1,6 +1,17 @@
 #!/bin/sh
 set -e
 
+# Load centralized .env if mounted to reflect any runtime updates
+if [ -f "/var/www/html/.env" ]; then
+    set -a
+    . /var/www/html/.env
+    set +a
+elif [ -f ".env" ]; then
+    set -a
+    . .env
+    set +a
+fi
+
 # Ensure storage directories exist and have proper permissions
 mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
 chmod -R 775 storage bootstrap/cache || true
