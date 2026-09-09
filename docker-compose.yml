@@ -1,22 +1,38 @@
 services:
-  # MySQL Database Service
-  mysql:
-    image: mysql:8.0
-    container_name: sari_mysql
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:17-alpine
+    container_name: sari_postgres
     restart: always
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-sari_inventory}
-      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?Error: DB_ROOT_PASSWORD must be set in .env}"
-      MYSQL_USER: ${DB_USERNAME:-sari_user}
-      MYSQL_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
+      POSTGRES_DB: ${DB_DATABASE:-sari_inventory}
+      POSTGRES_USER: ${DB_USERNAME:-sari_user}
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
     ports:
-      - "127.0.0.1:${DB_PORT:-3306}:3306"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
-      - db_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
     networks:
       - sari_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sari_user} -d ${DB_DATABASE:-sari_inventory}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: sari_redis
+    restart: always
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sari_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,7 +53,9 @@ services:
       - /var/www/html/vendor
       - ./.env:/var/www/html/.env
     depends_on:
-      mysql:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - sari_network
@@ -67,7 +85,8 @@ services:
       - sari_network
 
 volumes:
-  db_data:
+  pg_data:
+  redis_data:
 
 networks:
   sari_network:

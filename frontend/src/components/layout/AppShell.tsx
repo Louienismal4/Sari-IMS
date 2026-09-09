@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const isOnboardingRoute = pathname === "/onboarding";
+  const isSetupRoute = pathname === "/setup" || pathname === "/onboarding";
 
   const {
     sidebarOpen,
@@ -22,15 +22,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     isOnboarded,
   } = useInventory();
 
-  // If system is not onboarded and not currently on /onboarding, redirect to wizard
+  // If system is not onboarded and not currently on /setup, redirect to wizard
   useEffect(() => {
-    if (isOnboarded === false && !isOnboardingRoute) {
-      router.replace("/onboarding");
+    if (isOnboarded === false && !isSetupRoute) {
+      router.replace("/setup");
     }
-  }, [isOnboarded, isOnboardingRoute, router]);
+  }, [isOnboarded, isSetupRoute, router]);
 
-  // When on /onboarding, provide full-width focused canvas without sidebar
-  if (isOnboardingRoute) {
+  // When on setup routes, provide full-width focused canvas without sidebar
+  if (isSetupRoute) {
     return (
       <div className="min-h-screen w-full bg-slate-50 text-zinc-900 flex font-sans antialiased overflow-x-hidden">
         <Toaster />

@@ -12,7 +12,12 @@ Thumbs.db
 .env.*
 !.env.*.example
 !.env.example
+deploy/.env
+deploy/.env.*
+!deploy/.env.example
+deploy/data/
 
 # Editor & SQL scratchpads
 .vscode/
 *.session.sql
+scratch/

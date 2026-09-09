@@ -17,9 +17,10 @@ class ReceiptOcrService
      */
     public function processReceipt(string $base64Data, string $mimeType = 'image/jpeg'): array
     {
-        $apiKey = config('services.gemini.api_key');
+        $credentialService = app(IntegrationCredentialService::class);
+        $apiKey = $credentialService->get('gemini', 'api_key') ?: config('services.gemini.api_key');
         if (empty($apiKey)) {
-            throw new RuntimeException('Gemini API key is not configured. Please set GEMINI_API_KEY in backend config.');
+            throw new RuntimeException('Gemini API key is not configured. Please set your API key in Settings or during Setup.');
         }
 
         $categories = Category::all();

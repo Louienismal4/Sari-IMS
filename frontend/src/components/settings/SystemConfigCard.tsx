@@ -130,7 +130,7 @@ export function SystemConfigCard({ showToast }: SystemConfigCardProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push("/onboarding?mode=edit")}
+            onClick={() => router.push("/setup")}
             className="text-xs h-8 gap-1.5 border-zinc-300 text-zinc-800 hover:bg-zinc-50 hidden sm:flex"
           >
             <RotateCw className="w-3.5 h-3.5" />

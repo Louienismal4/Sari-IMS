@@ -17,16 +17,67 @@ mkdir -p storage/framework/cache/data storage/framework/sessions storage/framewo
 chmod -R 775 storage bootstrap/cache || true
 rm -f bootstrap/cache/*.php 2>/dev/null || true
 
-# Wait for MySQL if DB_HOST is set
+# Wait for Database if DB_HOST is set
 if [ -n "$DB_HOST" ]; then
-    echo "Waiting for database connection at $DB_HOST:$DB_PORT..."
+    DB_DRIVER="${DB_CONNECTION:-pgsql}"
+    DEFAULT_PORT="5432"
+    if [ "$DB_DRIVER" = "mysql" ]; then DEFAULT_PORT="3306"; fi
+    TARGET_PORT="${DB_PORT:-$DEFAULT_PORT}"
+
+    echo "Waiting for database connection ($DB_DRIVER) at $DB_HOST:$TARGET_PORT..."
     for i in $(seq 1 30); do
-        if php -r "try { new PDO('mysql:host=' . getenv('DB_HOST') . ';port=' . (getenv('DB_PORT') ?: '3306') . ';dbname=' . getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD')); exit(0); } catch (Exception \$e) { exit(1); }"; then
+        if php -r "
+            \$driver = getenv('DB_CONNECTION') ?: 'pgsql';
+            \$host = getenv('DB_HOST') ?: 'postgres';
+            \$port = getenv('DB_PORT') ?: (\$driver === 'mysql' ? '3306' : '5432');
+            \$db = getenv('DB_DATABASE') ?: 'sari_inventory';
+            \$user = getenv('DB_USERNAME') ?: 'sari_user';
+            \$pass = getenv('DB_PASSWORD') ?: '';
+            \$dsn = \"\$driver:host=\$host;port=\$port;dbname=\$db\";
+            try {
+                new PDO(\$dsn, \$user, \$pass, [PDO::ATTR_TIMEOUT => 3]);
+                exit(0);
+            } catch (Exception \$e) {
+                exit(1);
+            }
+        "; then
             echo "Database connection established!"
             break
         fi
         echo "Database is unavailable - sleeping 2s ($i/30)..."
         sleep 2
+    done
+fi
+
+# Wait for Redis if REDIS_HOST is set
+if [ -n "$REDIS_HOST" ]; then
+    echo "Waiting for Redis at $REDIS_HOST:${REDIS_PORT:-6379}..."
+    for i in $(seq 1 20); do
+        if php -r "
+            \$host = getenv('REDIS_HOST') ?: 'redis';
+            \$port = (int)(getenv('REDIS_PORT') ?: 6379);
+            \$pass = getenv('REDIS_PASSWORD') ?: null;
+            try {
+                if (extension_loaded('redis')) {
+                    \$r = new Redis();
+                    if (\$r->connect(\$host, \$port, 2)) {
+                        if (\$pass) { \$r->auth(\$pass); }
+                        if (\$r->ping()) { exit(0); }
+                    }
+                } else {
+                    \$fp = @fsockopen(\$host, \$port, \$errno, \$errstr, 2);
+                    if (\$fp) { fclose(\$fp); exit(0); }
+                }
+                exit(1);
+            } catch (Exception \$e) {
+                exit(1);
+            }
+        "; then
+            echo "Redis connection established!"
+            break
+        fi
+        echo "Redis is unavailable - sleeping 1s ($i/20)..."
+        sleep 1
     done
 fi
 
