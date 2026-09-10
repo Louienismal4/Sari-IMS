@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Search, PackageX } from "lucide-react";
+import { Search, PackageX, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,19 +11,29 @@ import { Product, Category } from "@/types/inventory";
 interface PosProductGridProps {
   products: Product[];
   categories: Category[];
-  onAddToCart: (product: Product) => void;
+  onToggleProduct?: (product: Product) => void;
+  onAddToCart?: (product: Product) => void;
   cartProductCounts?: Record<number, number>;
 }
 
 export function PosProductGrid({
   products,
   categories,
+  onToggleProduct,
   onAddToCart,
   cartProductCounts = {},
 }: PosProductGridProps) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | "all">("all");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const handleItemClick = (product: Product) => {
+    if (onToggleProduct) {
+      onToggleProduct(product);
+    } else if (onAddToCart) {
+      onAddToCart(product);
+    }
+  };
 
   // Keyboard shortcut '/' to immediately focus product search
   useEffect(() => {
@@ -60,7 +70,7 @@ export function PosProductGrid({
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && filteredProducts.length === 1) {
       e.preventDefault();
-      onAddToCart(filteredProducts[0]);
+      handleItemClick(filteredProducts[0]);
       setSearch("");
     }
   };
@@ -136,23 +146,29 @@ export function PosProductGrid({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
             {filteredProducts.map((product) => {
               const inCartCount = cartProductCounts[product.id] || 0;
+              const isSelected = inCartCount > 0;
               const isOutOfStock = product.stock_quantity <= 0;
               const price = parseFloat(product.selling_price) || 0;
 
               return (
                 <Card
                   key={product.id}
-                  onClick={() => !isOutOfStock && onAddToCart(product)}
+                  onClick={() => !isOutOfStock && handleItemClick(product)}
+                  role="button"
+                  aria-pressed={isSelected}
                   className={`relative flex flex-col justify-between p-3 transition-all rounded-xl border select-none ${
                     isOutOfStock
                       ? "bg-zinc-50/70 border-zinc-200 opacity-60 cursor-not-allowed"
-                      : "bg-white hover:border-blue-400 hover:shadow-sm active:scale-[0.98] cursor-pointer"
+                      : isSelected
+                      ? "bg-blue-50/50 border-blue-500 shadow-sm ring-1 ring-blue-500 cursor-pointer"
+                      : "bg-white hover:border-zinc-300 hover:shadow-sm active:scale-[0.98] cursor-pointer"
                   }`}
                 >
-                  {/* Cart badge indicator */}
-                  {inCartCount > 0 && (
-                    <div className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-sm ring-2 ring-white">
-                      {inCartCount}
+                  {/* Selected checkmark / count badge indicator */}
+                  {isSelected && (
+                    <div className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white rounded-full min-w-5 h-5 px-1 flex items-center justify-center text-[10px] font-bold shadow-sm ring-2 ring-white">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                      {inCartCount > 1 && <span className="ml-0.5">{inCartCount}</span>}
                     </div>
                   )}
 

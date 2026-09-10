@@ -33,7 +33,7 @@ export default function PosPage() {
   // Cart Management Hook
   const {
     cartItems,
-    addToCart,
+    toggleCartItem,
     updateQuantity,
     removeFromCart,
     clearCart,
@@ -238,7 +238,8 @@ export default function PosPage() {
               <PosProductGrid
                 products={products}
                 categories={categories}
-                onAddToCart={addToCart}
+                onToggleProduct={toggleCartItem}
+                onAddToCart={toggleCartItem}
                 cartProductCounts={cartProductCounts}
               />
             </div>

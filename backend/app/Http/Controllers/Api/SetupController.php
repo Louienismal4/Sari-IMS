@@ -118,10 +118,22 @@ class SetupController extends Controller
     }
 
     /**
-     * Comprehensive system health check.
-     * GET /api/health
+     * Liveness health check.
+     * GET /health, GET /api/health
      */
     public function health(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'ok',
+            'timestamp' => now()->toIso8601String(),
+        ], 200);
+    }
+
+    /**
+     * Readiness probe verifying infrastructure dependencies.
+     * GET /health/ready, GET /api/health/ready
+     */
+    public function ready(): JsonResponse
     {
         $db = $this->installationService->testDatabase();
         $redis = $this->installationService->testRedis();

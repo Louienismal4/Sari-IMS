@@ -16,7 +16,10 @@ class InstallationMiddleware
         'api/installation/*',
         'api/setup/*',
         'api/onboarding/*',
+        'health',
+        'health/*',
         'api/health',
+        'api/health/*',
         'up',
     ];
 

@@ -3,7 +3,6 @@
 import { useState, useEffect, useId, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Server,
   UserCheck,
   Store,
   Sparkles,
@@ -13,7 +12,6 @@ import {
   EyeOff,
   ExternalLink,
   ShieldCheck,
-  Check,
 } from "lucide-react";
 import {
   Card,
@@ -27,11 +25,8 @@ import { Input } from "@/components/ui/input";
 import { useInventory } from "@/context/InventoryContext";
 import {
   fetchInstallationStatus,
-  testDatabase,
-  testRedis,
   testGeminiApiKey,
   completeSetup,
-  InstallationStatus,
 } from "@/features/onboarding/api/onboardingService";
 import { SUPPORTED_CURRENCIES } from "@/constants/defaults";
 
@@ -40,13 +35,6 @@ function SetupForm() {
   const { markOnboarded, showToast, refreshInventory } = useInventory();
 
   const [initialLoading, setInitialLoading] = useState(true);
-  const [statusData, setStatusData] = useState<InstallationStatus | null>(null);
-
-  // Pre-flight check states
-  const [testingDb, setTestingDb] = useState(false);
-  const [testingRedisState, setTestingRedisState] = useState(false);
-  const [dbOk, setDbOk] = useState<boolean | null>(null);
-  const [redisOk, setRedisOk] = useState<boolean | null>(null);
 
   // Administrator Account
   const [adminName, setAdminName] = useState("");
@@ -96,10 +84,6 @@ function SetupForm() {
       try {
         const data = await fetchInstallationStatus();
         if (!ignore) {
-          setStatusData(data);
-          setDbOk(data.database.connected);
-          setRedisOk(data.redis.connected);
-
           // If already completed, redirect to home
           if (data.installed) {
             router.replace("/");
@@ -110,10 +94,14 @@ function SetupForm() {
             if (data.store.name) setStoreName(data.store.name);
             if (data.store.owner_name) setOwnerName(data.store.owner_name);
             if (data.store.address) setStoreAddress(data.store.address);
-            if (data.store.currency) setSelectedCurrencyCode(data.store.currency);
-            if (data.store.currency_symbol) setCustomCurrencySymbol(data.store.currency_symbol);
-            if (data.store.target_markup_percentage) setTargetMarkup(data.store.target_markup_percentage);
-            if (data.store.default_reorder_level) setReorderLevel(data.store.default_reorder_level);
+            if (data.store.currency)
+              setSelectedCurrencyCode(data.store.currency);
+            if (data.store.currency_symbol)
+              setCustomCurrencySymbol(data.store.currency_symbol);
+            if (data.store.target_markup_percentage)
+              setTargetMarkup(data.store.target_markup_percentage);
+            if (data.store.default_reorder_level)
+              setReorderLevel(data.store.default_reorder_level);
           }
         }
       } catch (err) {
@@ -128,42 +116,6 @@ function SetupForm() {
       ignore = true;
     };
   }, [router]);
-
-  const handleTestDatabase = async () => {
-    setTestingDb(true);
-    try {
-      const res = await testDatabase();
-      setDbOk(res.connected);
-      if (res.connected) {
-        showToast("Database connection verified", "success");
-      } else {
-        showToast(res.message, "error");
-      }
-    } catch {
-      setDbOk(false);
-      showToast("Unable to reach database server", "error");
-    } finally {
-      setTestingDb(false);
-    }
-  };
-
-  const handleTestRedis = async () => {
-    setTestingRedisState(true);
-    try {
-      const res = await testRedis();
-      setRedisOk(res.connected);
-      if (res.connected) {
-        showToast("Redis cache connection verified", "success");
-      } else {
-        showToast(res.message, "error");
-      }
-    } catch {
-      setRedisOk(false);
-      showToast("Unable to reach Redis service", "error");
-    } finally {
-      setTestingRedisState(false);
-    }
-  };
 
   const handleTestGemini = async () => {
     if (!geminiApiKey.trim()) {
@@ -222,7 +174,8 @@ function SetupForm() {
     const activeCurrency =
       selectedCurrencyCode === "CUSTOM"
         ? customCurrencySymbol
-        : SUPPORTED_CURRENCIES.find((c) => c.code === selectedCurrencyCode)?.symbol || "₱";
+        : SUPPORTED_CURRENCIES.find((c) => c.code === selectedCurrencyCode)
+            ?.symbol || "₱";
 
     try {
       const payload = {
@@ -265,11 +218,13 @@ function SetupForm() {
 
       await refreshInventory();
       router.replace("/");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Setup failed:", err);
-      setErrorMessage(
-        err.message || "Failed to finalize installation. Please check server logs."
-      );
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to finalize installation. Please check server logs.";
+      setErrorMessage(message);
       showToast("Setup encountered an error", "error");
     } finally {
       setSubmitting(false);
@@ -294,19 +249,13 @@ function SetupForm() {
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Minimalist Monochrome Header */}
         <div className="space-y-2 border-b border-zinc-200 pb-6">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest text-zinc-600 bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 rounded">
-              First-Run Setup
-            </span>
-            <span className="text-xs font-mono text-zinc-400">
-              v{statusData?.version || "1.0.0"}
-            </span>
-          </div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
             Store Setup & Initialization
           </h1>
           <p className="text-xs leading-relaxed text-zinc-500">
-            Configure your store administrator, business settings, and external integrations in a single step. All settings are committed to PostgreSQL.
+            Configure your store administrator, business settings, and external
+            integrations in a single step. All settings are committed to
+            PostgreSQL.
           </p>
         </div>
 
@@ -319,97 +268,25 @@ function SetupForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* SECTION 1: Infrastructure Diagnostics */}
+          {/* SECTION 1: Administrator Account */}
           <Card className="border-zinc-200 bg-white shadow-none rounded-xl">
             <CardHeader className="border-b border-zinc-100 pb-3">
               <CardTitle className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                <Server className="w-4 h-4 text-zinc-700" /> 1. Infrastructure Status
+                <UserCheck className="w-4 h-4 text-zinc-700" /> 1. Administrator
+                Account
               </CardTitle>
               <CardDescription className="text-xs text-zinc-500">
-                Persistent database and memory cache container services.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-4">
-              {/* PostgreSQL Item */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 bg-zinc-50/50">
-                <div>
-                  <p className="text-xs font-semibold text-zinc-900">PostgreSQL 17</p>
-                  <p className="text-[11px] font-mono text-zinc-500">
-                    postgres:5432 &bull; {statusData?.database.database || "sari_inventory"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded border border-zinc-200 bg-white text-zinc-700">
-                    {dbOk ? (
-                      <>
-                        <Check className="w-3 h-3 text-zinc-900" /> Connected
-                      </>
-                    ) : (
-                      "Offline"
-                    )}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTestDatabase}
-                    disabled={testingDb}
-                    className="h-7 text-xs font-mono border-zinc-300 text-zinc-800 hover:bg-zinc-100"
-                  >
-                    {testingDb && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
-                    Check
-                  </Button>
-                </div>
-              </div>
-
-              {/* Redis Item */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 bg-zinc-50/50">
-                <div>
-                  <p className="text-xs font-semibold text-zinc-900">Redis 7</p>
-                  <p className="text-[11px] font-mono text-zinc-500">
-                    redis:6379 &bull; Session & Lock Engine
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded border border-zinc-200 bg-white text-zinc-700">
-                    {redisOk ? (
-                      <>
-                        <Check className="w-3 h-3 text-zinc-900" /> Ready
-                      </>
-                    ) : (
-                      "Standby"
-                    )}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTestRedis}
-                    disabled={testingRedisState}
-                    className="h-7 text-xs font-mono border-zinc-300 text-zinc-800 hover:bg-zinc-100"
-                  >
-                    {testingRedisState && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
-                    Check
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* SECTION 2: Administrator Account */}
-          <Card className="border-zinc-200 bg-white shadow-none rounded-xl">
-            <CardHeader className="border-b border-zinc-100 pb-3">
-              <CardTitle className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-zinc-700" /> 2. Administrator Account
-              </CardTitle>
-              <CardDescription className="text-xs text-zinc-500">
-                Primary credentials for managing your inventory, audits, and settings.
+                Primary credentials for managing your inventory, audits, and
+                settings.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label htmlFor={adminNameId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={adminNameId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Full Name <span className="text-zinc-400">*</span>
                   </label>
                   <Input
@@ -427,7 +304,10 @@ function SetupForm() {
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor={adminEmailId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={adminEmailId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Email Address <span className="text-zinc-400">*</span>
                   </label>
                   <Input
@@ -444,7 +324,10 @@ function SetupForm() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label htmlFor={adminPasswordId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={adminPasswordId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Password <span className="text-zinc-400">*</span>
                   </label>
                   <div className="relative">
@@ -462,13 +345,20 @@ function SetupForm() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
                     >
-                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {showPassword ? (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor={adminConfirmPasswordId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={adminConfirmPasswordId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Confirm Password <span className="text-zinc-400">*</span>
                   </label>
                   <Input
@@ -485,11 +375,11 @@ function SetupForm() {
             </CardContent>
           </Card>
 
-          {/* SECTION 3: Store Configuration */}
+          {/* SECTION 2: Store Configuration */}
           <Card className="border-zinc-200 bg-white shadow-none rounded-xl">
             <CardHeader className="border-b border-zinc-100 pb-3">
               <CardTitle className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                <Store className="w-4 h-4 text-zinc-700" /> 3. Store Profile
+                <Store className="w-4 h-4 text-zinc-700" /> 2. Store Profile
               </CardTitle>
               <CardDescription className="text-xs text-zinc-500">
                 Business details printed on POS receipts and reports.
@@ -498,7 +388,10 @@ function SetupForm() {
             <CardContent className="space-y-3 pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label htmlFor={storeNameId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={storeNameId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Store Name <span className="text-zinc-400">*</span>
                   </label>
                   <Input
@@ -513,7 +406,10 @@ function SetupForm() {
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor={ownerNameId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={ownerNameId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Owner Name
                   </label>
                   <Input
@@ -528,7 +424,10 @@ function SetupForm() {
               </div>
 
               <div className="space-y-1">
-                <label htmlFor={addressId} className="text-xs font-medium text-zinc-700">
+                <label
+                  htmlFor={addressId}
+                  className="text-xs font-medium text-zinc-700"
+                >
                   Store Address
                 </label>
                 <Input
@@ -553,7 +452,9 @@ function SetupForm() {
                     onChange={(e) => {
                       const code = e.target.value;
                       setSelectedCurrencyCode(code);
-                      const matched = SUPPORTED_CURRENCIES.find((c) => c.code === code);
+                      const matched = SUPPORTED_CURRENCIES.find(
+                        (c) => c.code === code,
+                      );
                       if (matched) {
                         setCustomCurrencySymbol(matched.symbol);
                       }
@@ -581,7 +482,10 @@ function SetupForm() {
               {/* Markup & Reorder Thresholds */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
-                  <label htmlFor={markupId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={markupId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Default Profit Markup (%)
                   </label>
                   <Input
@@ -596,7 +500,10 @@ function SetupForm() {
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor={reorderId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={reorderId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Low Stock Reorder Alert Level
                   </label>
                   <Input
@@ -612,20 +519,25 @@ function SetupForm() {
             </CardContent>
           </Card>
 
-          {/* SECTION 4: AI & OCR Integration */}
+          {/* SECTION 3: AI & OCR Integration */}
           <Card className="border-zinc-200 bg-white shadow-none rounded-xl">
             <CardHeader className="border-b border-zinc-100 pb-3">
               <CardTitle className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-zinc-700" /> 4. Google Gemini AI OCR (Optional)
+                <Sparkles className="w-4 h-4 text-zinc-700" /> 3. Google Gemini
+                AI OCR (Optional)
               </CardTitle>
               <CardDescription className="text-xs text-zinc-500">
-                Automates receipt scanning and line-item extraction. Stored encrypted (AES-256) in PostgreSQL.
+                Automates receipt scanning and line-item extraction. Stored
+                encrypted (AES-256) in PostgreSQL.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label htmlFor={geminiId} className="text-xs font-medium text-zinc-700">
+                  <label
+                    htmlFor={geminiId}
+                    className="text-xs font-medium text-zinc-700"
+                  >
                     Gemini API Key
                   </label>
                   <a
@@ -655,7 +567,11 @@ function SetupForm() {
                       onClick={() => setShowGeminiKey(!showGeminiKey)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
                     >
-                      {showGeminiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {showGeminiKey ? (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                   <Button
@@ -666,7 +582,9 @@ function SetupForm() {
                     disabled={testingGemini || !geminiApiKey.trim()}
                     className="h-9 text-xs font-mono border-zinc-300 text-zinc-800 hover:bg-zinc-100"
                   >
-                    {testingGemini && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                    {testingGemini && (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    )}
                     Test
                   </Button>
                 </div>
@@ -685,10 +603,13 @@ function SetupForm() {
           {/* Security & Lock Note */}
           <div className="p-3.5 rounded-lg border border-zinc-200 bg-zinc-100/60 text-xs text-zinc-600 space-y-1">
             <p className="font-semibold text-zinc-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-zinc-800" /> Installation Locking
+              <ShieldCheck className="w-3.5 h-3.5 text-zinc-800" /> Installation
+              Locking
             </p>
             <p className="leading-relaxed text-[11px]">
-              Upon saving, this installation is finalized in PostgreSQL. All setup endpoints will be permanently locked (HTTP 403) to prevent unauthorized reconfiguration.
+              Upon saving, this installation is finalized in PostgreSQL. All
+              setup endpoints will be permanently locked (HTTP 403) to prevent
+              unauthorized reconfiguration.
             </p>
           </div>
 
@@ -700,12 +621,11 @@ function SetupForm() {
           >
             {submitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Saving Configuration & Launching...
+                <Loader2 className="w-4 h-4 animate-spin" /> Saving
+                Configuration & Launching...
               </>
             ) : (
-              <>
-                Save Configuration & Launch Store
-              </>
+              <>Save Configuration & Launch Store</>
             )}
           </Button>
         </form>
@@ -727,4 +647,3 @@ export default function SetupPage() {
     </Suspense>
   );
 }
-

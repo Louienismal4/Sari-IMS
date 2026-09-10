@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 // Health & Readiness check
 Route::get('/health', [SetupController::class, 'health']);
+Route::get('/health/ready', [SetupController::class, 'ready']);
 
 Route::middleware('throttle:120,1')->group(function () {
     // Installation & Setup State Machine Endpoints

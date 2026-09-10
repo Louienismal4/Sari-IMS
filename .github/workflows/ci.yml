@@ -11,29 +11,44 @@ jobs:
   # 1. LARAVEL BACKEND CI
   # ==========================================
   backend-ci:
-    name: Backend (Laravel & MySQL)
+    name: Backend (Laravel & PostgreSQL)
     runs-on: ubuntu-latest
 
     env:
-      DB_CONNECTION: mysql
+      DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
-      DB_PORT: 3306
+      DB_PORT: 5432
       DB_DATABASE: sari_inventory_test
       DB_USERNAME: test_user
       DB_PASSWORD: test_password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
 
-    # Ephemeral MySQL container for running automated tests
+    # Ephemeral PostgreSQL and Redis containers for running automated tests
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:17-alpine
         env:
-          MYSQL_DATABASE: sari_inventory_test
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_USER: test_user
-          MYSQL_PASSWORD: test_password
+          POSTGRES_DB: sari_inventory_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
         ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -prootpassword" --health-interval=10s --health-timeout=5s --health-retries=5
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d sari_inventory_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout Code
@@ -43,7 +58,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: mbstring, pdo, pdo_mysql, pdo_sqlite, sqlite3, bcmath, json
+          extensions: mbstring, pdo, pdo_pgsql, pgsql, redis, bcmath, json, zip
           coverage: none
           tools: composer:v2
 

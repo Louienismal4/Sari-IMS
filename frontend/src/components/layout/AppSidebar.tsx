@@ -15,6 +15,7 @@ import {
   Layers,
   ClipboardCheck,
   BookUser,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ export function AppSidebar({
   const pathname = usePathname();
 
   const isDashboard = pathname === "/";
+  const isPos = pathname === "/pos";
   const isAudit = pathname === "/audit";
   const isDebts = pathname === "/debts";
   const isProducts = pathname === "/products";
@@ -103,6 +105,17 @@ export function AppSidebar({
               >
                 <BarChart3 className="w-3.5 h-3.5" />
                 <span>Store Dashboard</span>
+              </Button>
+            </Link>
+
+            <Link href="/pos" className="block">
+              <Button
+                variant={isPos ? "default" : "ghost"}
+                className="w-full justify-start gap-2 text-xs font-semibold"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>Point of Sale (POS)</span>
               </Button>
             </Link>
 
