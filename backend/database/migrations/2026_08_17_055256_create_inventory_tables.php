@@ -31,7 +31,7 @@ return new class extends Migration
         Schema::create('stock_movements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
-            $table->enum('type', ['restock', 'damage', 'expired', 'adjustment']);
+            $table->enum('type', ['restock', 'damage', 'expired', 'adjustment', 'sale', 'audit_reconcile']);
             $table->integer('quantity_change');
             $table->string('notes')->nullable();
             $table->timestamp('created_at')->useCurrent();

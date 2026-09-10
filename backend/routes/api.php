@@ -4,14 +4,35 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DatabaseController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReceiptScanController;
+use App\Http\Controllers\Api\SetupController;
 use App\Http\Controllers\Api\StockMovementController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/health', function () {
-    return response()->json(['status' => 'ok']);
-});
+// Health & Readiness check
+Route::get('/health', [SetupController::class, 'health']);
+Route::get('/health/ready', [SetupController::class, 'ready']);
 
 Route::middleware('throttle:120,1')->group(function () {
+    // Installation & Setup State Machine Endpoints
+    Route::get('/installation/status', [SetupController::class, 'status']);
+    Route::post('/setup/test-db', [SetupController::class, 'testDatabase'])
+        ->middleware('throttle:15,1');
+    Route::post('/setup/test-redis', [SetupController::class, 'testRedis'])
+        ->middleware('throttle:15,1');
+    Route::post('/setup/test-integration', [SetupController::class, 'testIntegration'])
+        ->middleware('throttle:15,1');
+    Route::post('/setup/complete', [SetupController::class, 'complete'])
+        ->middleware('throttle:10,1');
+
+    // Backward-compatible Onboarding aliases
+    Route::get('/onboarding/status', [SetupController::class, 'status']);
+    Route::post('/onboarding/test-db', [SetupController::class, 'testDatabase'])
+        ->middleware('throttle:15,1');
+    Route::post('/onboarding/test-gemini', [SetupController::class, 'testIntegration'])
+        ->middleware('throttle:15,1');
+    Route::post('/onboarding/setup', [SetupController::class, 'complete'])
+        ->middleware('throttle:10,1');
+
     // Categories
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::post('/categories', [CategoryController::class, 'store']);

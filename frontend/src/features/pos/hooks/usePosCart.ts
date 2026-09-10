@@ -67,6 +67,38 @@ export function usePosCart(options?: UsePosCartOptions) {
     [options]
   );
 
+  // Toggle item selection in cart (select/add 1 if not present, deselect/remove if present)
+  const toggleCartItem = useCallback(
+    (product: Product) => {
+      setCartItems((prev) => {
+        const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+
+        // If already in cart -> Deselect & remove
+        if (existingIndex > -1) {
+          return prev.filter((item) => item.product.id !== product.id);
+        }
+
+        // If not in cart -> Validate stock and select (add 1)
+        if (product.stock_quantity <= 0) {
+          options?.showToast?.(`"${product.name}" is out of stock!`, "warning");
+          return prev;
+        }
+
+        const unitPrice = parseFloat(product.selling_price) || 0;
+        return [
+          ...prev,
+          {
+            product,
+            quantity: 1,
+            unit_price: unitPrice,
+            subtotal: unitPrice,
+          },
+        ];
+      });
+    },
+    [options]
+  );
+
   // Update specific item quantity
   const updateQuantity = useCallback(
     (productId: number, newQuantity: number) => {
@@ -123,6 +155,7 @@ export function usePosCart(options?: UsePosCartOptions) {
   return {
     cartItems,
     addToCart,
+    toggleCartItem,
     updateQuantity,
     removeFromCart,
     clearCart,

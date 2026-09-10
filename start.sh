@@ -127,20 +127,11 @@ ensure_env() {
     echo "DB_CONNECTION=mysql" >> "$ENV_FILE"
   fi
 
-  # Ensure backend/.env exists and has DB_CONNECTION=mysql
-  if [ ! -f "backend/.env" ]; then
-    cp "$ENV_FILE" "backend/.env" 2>/dev/null || true
-  elif ! grep -q "^DB_CONNECTION=" "backend/.env"; then
-    echo "DB_CONNECTION=mysql" >> "backend/.env"
-  fi
+  # Remove legacy duplicate env files to guarantee single centralized source of truth
+  rm -f backend/.env frontend/.env 2>/dev/null || true
 
-  # Ensure frontend/.env exists
-  if [ ! -f "frontend/.env" ]; then
-    echo "NEXT_PUBLIC_API_URL=/api" > "frontend/.env"
-  fi
-
-  # Clean any stale config cache on host that may interfere with mounting
-  rm -f backend/bootstrap/cache/config.php backend/bootstrap/cache/routes-v7.php 2>/dev/null || true
+  # Clean any stale config/package cache on host that may interfere with mounting
+  rm -f backend/bootstrap/cache/*.php 2>/dev/null || true
 }
 
 # Helper: Get configured ports
@@ -149,32 +140,41 @@ get_ports() {
   fe_port=${fe_port:-3001}
   be_port=$(grep -E "^BACKEND_PORT=" "$ENV_FILE" 2>/dev/null | cut -d '=' -f2 | tr -d ' "' || echo "8000")
   be_port=${be_port:-8000}
-  db_port=$(grep -E "^DB_PORT=" "$ENV_FILE" 2>/dev/null | cut -d '=' -f2 | tr -d ' "' || echo "3306")
-  db_port=${db_port:-3306}
+  db_port=$(grep -E "^DB_PORT=" "$ENV_FILE" 2>/dev/null | cut -d '=' -f2 | tr -d ' "' || echo "5432")
+  db_port=${db_port:-5432}
+  db_user=$(grep -E "^DB_USERNAME=" "$ENV_FILE" 2>/dev/null | cut -d '=' -f2 | tr -d ' "' || echo "sari_user")
+  db_name=$(grep -E "^DB_DATABASE=" "$ENV_FILE" 2>/dev/null | cut -d '=' -f2 | tr -d ' "' || echo "sari_inventory")
 }
 
-# Helper: Wait for MySQL, backend, and frontend
+# Helper: Wait for PostgreSQL, Redis, backend, and frontend
 wait_for_services() {
   get_ports
 
-  echo -ne "${CYAN}⏳ Waiting for MySQL to initialize${NC}"
+  echo -ne "${CYAN}⏳ Waiting for PostgreSQL to initialize${NC}"
   for i in {1..35}; do
-    if docker compose -f "$COMPOSE_FILE" exec -T mysql mysqladmin ping -h localhost --silent >/dev/null 2>&1; then
+    if docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U "${db_user}" -d "${db_name}" >/dev/null 2>&1; then
       echo -e " ${GREEN}✓ Ready!${NC}"
       break
     fi
     echo -ne "."
     sleep 1
     if [ "$i" -eq 35 ]; then
-      echo -e "\n${YELLOW}⚠️  MySQL took longer than expected. Continuing startup...${NC}"
+      echo -e "\n${YELLOW}⚠️  PostgreSQL took longer than expected. Continuing startup...${NC}"
     fi
+  done
+
+  echo -ne "${CYAN}⏳ Waiting for Redis to initialize${NC}"
+  for i in {1..20}; do
+    if docker compose -f "$COMPOSE_FILE" exec -T redis redis-cli ping >/dev/null 2>&1; then
+      echo -e " ${GREEN}✓ Ready!${NC}"
+      break
+    fi
+    echo -ne "."
+    sleep 1
   done
 
   echo -e "${BLUE}📦 Running database migrations...${NC}"
   docker compose -f "$COMPOSE_FILE" exec -T backend php artisan migrate --force || true
-
-  echo -e "${BLUE}🌱 Seeding starter Sari-Sari store items...${NC}"
-  docker compose -f "$COMPOSE_FILE" exec -T backend php artisan db:seed --force || true
 
   echo -ne "${CYAN}⏳ Waiting for Next.js frontend on port ${fe_port}${NC}"
   for i in {1..40}; do
@@ -198,9 +198,10 @@ show_success_and_open() {
   echo -e "${GREEN} 🏪 SARI-SARI STORE IMS IS READY!${NC}"
   echo -e "${GREEN}=====================================================${NC}"
   echo -e "  ${BOLD}App Dashboard / POS:${NC} ${CYAN}${app_url}${NC}"
+  echo -e "  ${BOLD}Setup Wizard:${NC}        ${CYAN}${app_url}/setup${NC}"
   echo -e "  ${BOLD}Backend API:${NC}          ${CYAN}http://localhost:${be_port}${NC}"
-  echo -e "  ${BOLD}MySQL Database:${NC}       ${CYAN}localhost:${db_port}${NC}"
-  echo -e "  ${BOLD}Catalog Status:${NC}       ${GREEN}Pre-populated with starter items!${NC}"
+  echo -e "  ${BOLD}PostgreSQL 17:${NC}        ${CYAN}localhost:${db_port}${NC}"
+  echo -e "  ${BOLD}Redis 7 Cache:${NC}        ${CYAN}localhost:6379${NC}"
   echo -e "${GREEN}=====================================================${NC}"
   echo -e "  • Stop system:   ${BLUE}./start.sh stop${NC}"
   echo -e "  • View logs:     ${BLUE}./start.sh logs${NC}"

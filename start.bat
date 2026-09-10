@@ -36,36 +36,30 @@ if not exist ".env" (
     )
 )
 
-REM 3. Ensure backend/.env and frontend/.env
-if not exist "backend\.env" (
-    copy .env backend\.env >nul 2>nul
-)
-if not exist "frontend\.env" (
-    echo NEXT_PUBLIC_API_URL=/api> frontend\.env
-)
+REM 3. Ensure clean single-env environment
+if exist "backend\.env" del /f /q "backend\.env" >nul 2>nul
+if exist "frontend\.env" del /f /q "frontend\.env" >nul 2>nul
+
 
 REM Clean any stale host cache
-if exist "backend\bootstrap\cache\config.php" del /f /q "backend\bootstrap\cache\config.php" >nul 2>nul
-if exist "backend\bootstrap\cache\routes-v7.php" del /f /q "backend\bootstrap\cache\routes-v7.php" >nul 2>nul
+if exist "backend\bootstrap\cache\*.php" del /f /q "backend\bootstrap\cache\*.php" >nul 2>nul
 
 REM 4. Start Containers
 echo [*] Building and starting Docker containers...
 docker compose --env-file .env up -d --build
 
-REM 5. Wait for MySQL and run migrations + seed
-echo [*] Waiting for MySQL database to initialize...
+REM 5. Wait for PostgreSQL and run migrations
+echo [*] Waiting for PostgreSQL database and Redis to initialize...
 timeout /t 10 /nobreak >nul
 
 echo [*] Running database migrations...
 docker compose exec -T backend php artisan migrate --force
 
-echo [*] Seeding initial store catalog...
-docker compose exec -T backend php artisan db:seed --force
-
 echo =====================================================
 echo  SARI-SARI STORE IMS IS READY!
 echo =====================================================
 echo  App Dashboard: http://localhost:3001
+echo  Setup Wizard:  http://localhost:3001/setup
 echo  Backend API:   http://localhost:8000
 echo =====================================================
 

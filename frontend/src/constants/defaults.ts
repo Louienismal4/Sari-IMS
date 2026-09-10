@@ -28,3 +28,30 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   enable_haptic_feedback: true,
   custom_units: [],
 };
+
+export interface CurrencyOption {
+  code: string;
+  symbol: string;
+  name: string;
+}
+
+export const SUPPORTED_CURRENCIES: CurrencyOption[] = [
+  { code: "PHP", symbol: "₱", name: "Philippine Peso (₱)" },
+  { code: "USD", symbol: "$", name: "US Dollar ($)" },
+  { code: "EUR", symbol: "€", name: "Euro (€)" },
+  { code: "GBP", symbol: "£", name: "British Pound (£)" },
+  { code: "JPY", symbol: "¥", name: "Japanese Yen (¥)" },
+  { code: "CAD", symbol: "C$", name: "Canadian Dollar (C$)" },
+  { code: "AUD", symbol: "A$", name: "Australian Dollar (A$)" },
+  { code: "SGD", symbol: "S$", name: "Singapore Dollar (S$)" },
+  { code: "MYR", symbol: "RM", name: "Malaysian Ringgit (RM)" },
+  { code: "IDR", symbol: "Rp", name: "Indonesian Rupiah (Rp)" },
+  { code: "THB", symbol: "฿", name: "Thai Baht (฿)" },
+  { code: "VND", symbol: "₫", name: "Vietnamese Dong (₫)" },
+  { code: "INR", symbol: "₹", name: "Indian Rupee (₹)" },
+  { code: "KRW", symbol: "₩", name: "South Korean Won (₩)" },
+  { code: "HKD", symbol: "HK$", name: "Hong Kong Dollar (HK$)" },
+  { code: "TWD", symbol: "NT$", name: "New Taiwan Dollar (NT$)" },
+  { code: "AED", symbol: "د.إ", name: "UAE Dirham (AED)" },
+  { code: "SAR", symbol: "﷼", name: "Saudi Riyal (SAR)" },
+];

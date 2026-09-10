@@ -17,6 +17,7 @@ import {
   saveStoreSettings,
 } from "@/services/settingsService";
 import { useDashboardMetrics } from "@/features/dashboard/hooks/useDashboardMetrics";
+import { fetchOnboardingStatus } from "@/features/onboarding/api/onboardingService";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -46,6 +47,9 @@ interface InventoryContextType {
   editCategory: (id: number, name: string) => Promise<Category>;
   removeCategory: (id: number) => Promise<void>;
   isLoading: boolean;
+  isOnboarded: boolean | null;
+  checkOnboardingStatus: () => Promise<boolean>;
+  markOnboarded: (newSettings?: StoreSettings) => void;
   toast: ToastInfo | null;
   showToast: (message: string, type?: ToastType) => void;
   hideToast: () => void;
@@ -59,6 +63,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
 
   const showToast = useCallback((message: string, type: ToastType = "success") => {
     const variantMap: Record<ToastType, "default" | "destructive" | "success" | "warning" | "info"> = {
@@ -75,6 +80,26 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hideToast = useCallback(() => {}, []);
+
+  const checkOnboardingStatus = useCallback(async () => {
+    try {
+      const res = await fetchOnboardingStatus();
+      setIsOnboarded(res.is_onboarded);
+      return res.is_onboarded;
+    } catch (e) {
+      console.error("Failed to check onboarding status:", e);
+      setIsOnboarded(true);
+      return true;
+    }
+  }, []);
+
+  const markOnboarded = useCallback((newSettings?: StoreSettings) => {
+    setIsOnboarded(true);
+    if (newSettings) {
+      setSettings(newSettings);
+      saveStoreSettings(newSettings);
+    }
+  }, []);
 
   // Refresh Products and Categories
   const refreshInventory = useCallback(async () => {
@@ -100,13 +125,19 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         const loadedSettings = loadStoreSettings();
         setSettings(loadedSettings);
 
-        const [prodData, catData] = await Promise.allSettled([
+        const [prodData, catData, onboardingData] = await Promise.allSettled([
           fetchProducts(),
           fetchCategories(),
+          fetchOnboardingStatus(),
         ]);
         if (!ignore) {
           if (prodData.status === "fulfilled") setProducts(prodData.value);
           if (catData.status === "fulfilled") setCategories(catData.value);
+          if (onboardingData.status === "fulfilled") {
+            setIsOnboarded(onboardingData.value.is_onboarded);
+          } else {
+            setIsOnboarded(true);
+          }
         }
       } catch (err) {
         console.error("Failed to initialize inventory:", err);
@@ -177,6 +208,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         editCategory: editCategoryAction,
         removeCategory: removeCategoryAction,
         isLoading,
+        isOnboarded,
+        checkOnboardingStatus,
+        markOnboarded,
         toast: null,
         showToast,
         hideToast,
