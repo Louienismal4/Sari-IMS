@@ -109,17 +109,35 @@ export type OnboardingStatus = {
   };
 };
 
+export interface LegacyOnboardingPayload {
+  owner_name?: string;
+  store_name?: string;
+  currency_symbol?: string;
+  default_markup_percent?: number;
+  default_reorder_level?: number;
+  gemini_api_key?: string;
+  [key: string]: unknown;
+}
+
+export interface LegacyOnboardingResponse {
+  success: boolean;
+  message: string;
+  store_settings: LegacyOnboardingPayload;
+  is_onboarded: boolean;
+}
+
 // Backward compatibility aliases
-export async function testDbConnection(params?: any): Promise<{ success: boolean; message: string }> {
+export async function testDbConnection(): Promise<{ success: boolean; message: string }> {
   try {
     const res = await testDatabase();
     return { success: res.connected, message: res.message };
-  } catch (err: any) {
-    return { success: false, message: err.message || "Database connection error" };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Database connection error";
+    return { success: false, message };
   }
 }
 
-export async function saveOnboardingSetup(payload: any): Promise<any> {
+export async function saveOnboardingSetup(payload: LegacyOnboardingPayload): Promise<LegacyOnboardingResponse> {
   const setupPayload: SetupPayload = {
     admin: {
       name: payload.owner_name || "Admin",

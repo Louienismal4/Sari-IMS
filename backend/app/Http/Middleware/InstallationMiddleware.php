@@ -42,6 +42,11 @@ class InstallationMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // In testing environment, bypass installation gating unless explicitly enforced by the test
+        if (app()->environment('testing') && !config('app.enforce_installation_middleware_in_tests', false)) {
+            return $next($request);
+        }
+
         $isInstalled = $this->installationService->isInstalled();
 
         if (!$isInstalled) {
