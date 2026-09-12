@@ -134,18 +134,23 @@ setup_env() {
 # Display live status and service links
 show_status() {
   local domain="${DOMAIN:-:80}"
-  local url="http://${LAN_IP}"
-
-  if [ "$domain" != ":80" ] && [ "$domain" != "localhost" ] && [ -n "$domain" ]; then
-    url="https://${domain}"
-  fi
+  local ip_url="http://${LAN_IP}"
 
   echo ""
   echo -e "${GREEN}=====================================================${NC}"
   echo -e "${GREEN} 🚀 SARI-IMS PRODUCTION IS LIVE!${NC}"
   echo -e "${GREEN}=====================================================${NC}"
-  echo -e "  ${BOLD}App URL / POS:${NC}     ${CYAN}${url}${NC}"
-  echo -e "  ${BOLD}Setup Wizard:${NC}      ${CYAN}${url}/setup${NC}"
+  if [ "$domain" != ":80" ] && [ "$domain" != "localhost" ] && [ -n "$domain" ]; then
+    echo -e "  ${BOLD}Custom Domain URL:${NC} ${CYAN}https://${domain}${NC}"
+    echo -e "  ${BOLD}Direct IP / Local:${NC} ${CYAN}${ip_url}${NC}"
+    echo -e "  ${BOLD}Setup Wizard:${NC}      ${CYAN}https://${domain}/setup${NC} (or ${ip_url}/setup)"
+  else
+    echo -e "  ${BOLD}App URL / POS:${NC}     ${CYAN}${ip_url}${NC}"
+    echo -e "  ${BOLD}Setup Wizard:${NC}      ${CYAN}${ip_url}/setup${NC}"
+    if [ "$LAN_IP" != "localhost" ] && [ "$LAN_IP" != "127.0.0.1" ]; then
+      echo -e "  ${BOLD}Localhost URL:${NC}     ${CYAN}http://localhost${NC}"
+    fi
+  fi
   echo -e "${GREEN}=====================================================${NC}"
   echo -e "  • Check logs:      ${BLUE}./prod.sh logs${NC}"
   echo -e "  • Check status:    ${BLUE}./prod.sh status${NC}"
