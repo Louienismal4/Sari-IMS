@@ -85,29 +85,32 @@ The script automatically:
 
 ## 🚀 Production Deployment & Management (`./prod.sh`)
 
-### 1. Automated Build on Push to `main`
-Whenever you push or merge changes into the `main` branch (or tag a release `v*.*.*`), GitHub Actions will automatically:
-1. Build the production backend Docker image and push to `ghcr.io/<owner>/sari-ims/backend:latest`.
-2. Build the optimized Next.js standalone image and push to `ghcr.io/<owner>/sari-ims/frontend:latest`.
+### 1. Automated CI/CD & Release Pipeline
+Whenever you push to the `main` branch (or tag a release `v*.*.*`), GitHub Actions will automatically:
+1. Build and push production backend & frontend images to GitHub Container Registry (`ghcr.io`).
+2. Package all production configs and CLI tools into `sari-ims-deploy.tar.gz`.
+3. Publish the release bundle directly to **GitHub Releases (`latest`)** and Actions artifacts.
 
 ### 2. Deploying on Your Production Server
-On your production server (or local mini-PC / VPS):
+On your production server (Linux VPS, mini-PC, or Raspberry Pi), simply run:
 
-1. Copy the `deploy/` directory to the server:
-   ```bash
-   scp -r deploy user@your-server:/opt/sari-ims
-   cd /opt/sari-ims
-   ```
-2. Run the centralized production script:
-   ```bash
-   ./prod.sh
-   ```
-   This automatically provisions `.env` with secure credentials, pulls images, launches PostgreSQL, Redis, Backend, Frontend, and Caddy, and executes migrations.
+```bash
+# 1. Download the latest deployment bundle
+curl -fsSLO https://github.com/Louienismal4/Sari-IMS/releases/latest/download/sari-ims-deploy.tar.gz
 
-3. Production CLI commands:
-   - Upgrade with automatic pre-backup: `./prod.sh update`
-   - Backup database: `./prod.sh backup`
-   - Restore database: `./prod.sh restore <backup_file>`
-   - View logs: `./prod.sh logs`
-   - Check status: `./prod.sh status`
-   - Stop stack: `./prod.sh stop`
+# 2. Extract the archive
+tar -xzf sari-ims-deploy.tar.gz
+
+# 3. Launch and initialize the stack
+./prod.sh
+```
+
+*(Alternatively, you can copy the `deploy/` directory from your machine via `scp -r deploy user@server:/opt/sari-ims` and run `./prod.sh` inside it).*
+
+### 3. Production CLI Management
+- **Upgrade with automatic pre-backup:** `./prod.sh update`
+- **Backup database:** `./prod.sh backup`
+- **Restore database:** `./prod.sh restore <backup_file>`
+- **View live logs:** `./prod.sh logs`
+- **Check service health:** `./prod.sh status`
+- **Stop containers:** `./prod.sh stop`

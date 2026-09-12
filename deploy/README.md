@@ -38,29 +38,41 @@ This guide covers bootstrapping, updating, backing up, and maintaining Sari-IMS 
 
 ## ⚡ 1. Clean Installation
 
-1. Copy the `deploy/` directory to your target production server (e.g. `/opt/sari-ims`):
-   ```bash
-   scp -r deploy user@your-server:/opt/sari-ims
-   cd /opt/sari-ims
-   ```
+### Option A: One-Command Download on Server (Recommended)
+On your production server (Linux VPS, mini-PC, or Raspberry Pi):
 
-2. Run the automated installer script:
-   ```bash
-   ./prod.sh
-   ```
-   The script will:
-   - Verify Docker and Docker Compose.
-   - Provision `.env` from `.env.example`.
-   - Generate a unique 32-byte `APP_KEY` and secure `DB_PASSWORD`.
-   - Pull the latest release images from GHCR.
-   - Boot PostgreSQL 17, Redis 7, Laravel Backend, Next.js Frontend, and Caddy.
-   - Run initial database migrations.
+```bash
+# 1. Download the release bundle
+curl -fsSLO https://github.com/Louienismal4/Sari-IMS/releases/latest/download/sari-ims-deploy.tar.gz
 
-3. Open your browser to:
-   ```text
-   http://<your-server-ip-or-domain>/setup
-   ```
-   Complete the 5-step Setup Wizard to create your Administrator account, configure your store details, and optionally test your Google Gemini AI key.
+# 2. Extract the archive
+tar -xzf sari-ims-deploy.tar.gz
+
+# 3. Launch and initialize the stack
+./prod.sh
+```
+
+### Option B: Copy from Local Development Machine
+```bash
+scp -r deploy user@your-server:/opt/sari-ims
+cd /opt/sari-ims
+./prod.sh
+```
+
+The `./prod.sh` script automatically:
+- Verifies Docker & Docker Compose.
+- Provisions `.env` from `.env.example`.
+- Generates a unique 32-byte `APP_KEY` and secure random `DB_PASSWORD`.
+- Pulls the latest release images from GitHub Container Registry (GHCR).
+- Boots PostgreSQL 17, Redis 7, Laravel Backend, Next.js Frontend, and Caddy.
+- Runs initial database migrations.
+
+### 4. Complete Setup Wizard
+Open your browser to:
+```text
+http://<your-server-ip-or-domain>/setup
+```
+Complete the 5-step Setup Wizard to create your Administrator account, configure your store details, and optionally test your Google Gemini AI key.
 
 ---
 

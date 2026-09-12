@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build, Package & Release Pipeline
 
 on:
   push:
@@ -10,10 +10,13 @@ env:
   REGISTRY: ghcr.io
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
+  # ==============================================================================
+  # 1. BUILD & PUSH BACKEND DOCKER IMAGE
+  # ==============================================================================
   build-and-push-backend:
     name: Build & Push Backend
     runs-on: ubuntu-latest
@@ -56,6 +59,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ==============================================================================
+  # 2. BUILD & PUSH FRONTEND DOCKER IMAGE
+  # ==============================================================================
   build-and-push-frontend:
     name: Build & Push Frontend
     runs-on: ubuntu-latest
@@ -97,3 +103,98 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ==============================================================================
+  # 3. ASSEMBLE, PACKAGE (.tgz) & PUBLISH RELEASE
+  # ==============================================================================
+  package-and-release:
+    name: Package & Release Deployment Bundle
+    needs: [build-and-push-backend, build-and-push-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assemble Deployment Bundle
+        run: |
+          mkdir -p staging/deploy
+          cp deploy/docker-compose.yml staging/deploy/
+          cp deploy/Caddyfile staging/deploy/
+          cp deploy/.env.example staging/deploy/
+          cp deploy/prod.sh staging/deploy/
+          cp deploy/README.md staging/deploy/
+          chmod +x staging/deploy/prod.sh
+
+          # Root convenience launcher in case tarball is extracted at target root
+          cat << 'EOF' > staging/prod.sh
+          #!/usr/bin/env bash
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          if [ -f "$SCRIPT_DIR/deploy/prod.sh" ]; then
+            exec "$SCRIPT_DIR/deploy/prod.sh" "$@"
+          elif [ -f "$SCRIPT_DIR/prod.sh" ]; then
+            exec "$SCRIPT_DIR/prod.sh" "$@"
+          fi
+          EOF
+          chmod +x staging/prod.sh
+
+          # Create compressed deployment archives (.tar.gz and .tgz)
+          tar -czvf sari-ims-deploy.tar.gz -C staging .
+          cp sari-ims-deploy.tar.gz sari-ims-deploy.tgz
+
+          echo "Deployment bundles created:"
+          ls -lh sari-ims-deploy.tar.gz sari-ims-deploy.tgz
+
+      - name: Upload Deployment Artifacts (CI Run Summary)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sari-ims-deploy
+          path: |
+            sari-ims-deploy.tar.gz
+            sari-ims-deploy.tgz
+          retention-days: 30
+
+      - name: Publish to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}"
+          RELEASE_TITLE="${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'Production Release (Latest)' }}"
+          RELEASE_NOTES="### 🏪 Sari-IMS Production Deployment Bundle
+
+          Automated build from commit \`${{ github.sha }}\` on $(date -u +'%Y-%m-%d %H:%M:%S UTC').
+
+          #### 🚀 Quick Start on Your Server:
+          \`\`\`bash
+          # 1. Download latest deployment bundle
+          curl -fsSLO https://github.com/${{ github.repository }}/releases/latest/download/sari-ims-deploy.tar.gz
+
+          # 2. Extract archive
+          tar -xzf sari-ims-deploy.tar.gz
+
+          # 3. Launch production stack
+          ./prod.sh
+          \`\`\`
+          "
+
+          # If triggered by push to main, ensure the 'latest' tag points to current commit
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -f latest "${{ github.sha }}"
+            git push -f origin latest || true
+          fi
+
+          # Create or update release
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Updating existing release: $RELEASE_TAG"
+            gh release upload "$RELEASE_TAG" sari-ims-deploy.tar.gz sari-ims-deploy.tgz --clobber
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES"
+          else
+            echo "Creating new release: $RELEASE_TAG"
+            gh release create "$RELEASE_TAG" sari-ims-deploy.tar.gz sari-ims-deploy.tgz \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES"
+          fi
