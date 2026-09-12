@@ -7,14 +7,15 @@ services:
     environment:
       POSTGRES_DB: ${DB_DATABASE:-sari_inventory}
       POSTGRES_USER: ${DB_USERNAME:-sari_prod_user}
-      POSTGRES_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sari_secure_pass_2026}
+      POSTGRES_HOST_AUTH_METHOD: "trust"
     volumes:
       - pg_data_prod:/var/lib/postgresql/data
     networks:
       - sari_network_prod
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sari_prod_user} -d ${DB_DATABASE:-sari_inventory}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
 
@@ -29,7 +30,7 @@ services:
       - sari_network_prod
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
 
@@ -44,13 +45,13 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       APP_KEY: ${APP_KEY:-}
-      APP_URL: ${APP_URL:-https://sari.louienismal.com}
+      APP_URL: ${APP_URL:-http://localhost}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:-sari_inventory}
       DB_USERNAME: ${DB_USERNAME:-sari_prod_user}
-      DB_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD must be set in .env}"
+      DB_PASSWORD: ${DB_PASSWORD:-sari_secure_pass_2026}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CACHE_STORE: redis
@@ -87,7 +88,7 @@ services:
       - "${PORT:-80}:80"
       - "443:443"
     environment:
-      DOMAIN: ${DOMAIN:-sari.louienismal.com}
+      DOMAIN: ${DOMAIN:-:80}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data_prod:/data

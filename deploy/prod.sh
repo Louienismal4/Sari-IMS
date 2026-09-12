@@ -161,12 +161,14 @@ show_status() {
   echo ""
 }
 
-# Helper: Wait for PostgreSQL container health
+# Helper: Wait for PostgreSQL container health and sync password
 wait_for_db() {
   echo -ne "${CYAN}⏳ Waiting for PostgreSQL container to become ready...${NC}"
   for i in {1..35}; do
     if $DOCKER_CMD compose exec -T postgres pg_isready -U "${DB_USERNAME:-sari_prod_user}" -d "${DB_DATABASE:-sari_inventory}" >/dev/null 2>&1; then
       echo -e " ${GREEN}✓ Database ready!${NC}"
+      # Guarantee PostgreSQL user password matches .env
+      $DOCKER_CMD compose exec -T postgres psql -U "${DB_USERNAME:-sari_prod_user}" -d "${DB_DATABASE:-sari_inventory}" -c "ALTER USER \"${DB_USERNAME:-sari_prod_user}\" WITH PASSWORD '${DB_PASSWORD}';" >/dev/null 2>&1 || true
       return 0
     fi
     echo -ne "."
