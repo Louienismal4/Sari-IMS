@@ -46,7 +46,7 @@ This guide covers bootstrapping, updating, backing up, and maintaining Sari-IMS 
 
 2. Run the automated installer script:
    ```bash
-   ./scripts/install.sh
+   ./prod.sh
    ```
    The script will:
    - Verify Docker and Docker Compose.
@@ -70,7 +70,7 @@ To upgrade an existing installation to a new version without losing any data or 
 
 ```bash
 cd /opt/sari-ims
-./scripts/update.sh
+./prod.sh update
 ```
 
 The update script automatically:
@@ -87,14 +87,14 @@ The update script automatically:
 ### Creating a Backup
 To trigger an on-demand, atomic backup of the PostgreSQL database:
 ```bash
-./scripts/backup.sh
+./prod.sh backup
 ```
 Backups are saved as compressed SQL archives in `deploy/backups/sari_backup_YYYYMMDD_HHMMSS.sql.gz`.
 
 ### Restoring a Backup
 To restore a backup into the running PostgreSQL container:
 ```bash
-gunzip -c backups/sari_backup_YYYYMMDD_HHMMSS.sql.gz | docker exec -i sari_postgres_prod psql -U sari_user -d sari_inventory
+./prod.sh restore backups/sari_backup_YYYYMMDD_HHMMSS.sql.gz
 ```
 
 ---

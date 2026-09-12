@@ -40,17 +40,17 @@ Sari-IMS/
 To run the entire system locally with zero configuration:
 
 1. **Clone or download the repository / package**
-2. **Run the startup script:**
+2. **Run the development launcher script:**
    - **macOS / Linux:**
      ```bash
-     ./start.sh
+     ./dev.sh
      ```
    - **Windows:** Double-click `start.bat` (or run `.\start.bat` in PowerShell/CMD)
 
 The script automatically:
 - Checks Docker and starts the daemon if needed
 - Generates `.env` and application encryption keys
-- Builds and starts all containers (MySQL, Laravel API, Next.js Frontend)
+- Builds and starts all containers (PostgreSQL 17, Redis 7, Laravel API, Next.js Frontend)
 - Runs database migrations
 - Pre-populates starter store inventory items (noodles, coffee, canned goods, snacks)
 - **Automatically launches your browser to `http://localhost:3001`**, loaded and ready to use!
@@ -64,26 +64,26 @@ The script automatically:
 | :--- | :--- | :--- |
 | **Frontend POS & App** | [http://localhost:3001](http://localhost:3001) | Next.js with Fast Refresh (auto-opened) |
 | **Backend API** | [http://localhost:8000](http://localhost:8000) | Laravel API server |
-| **MySQL Database** | `localhost:3306` | Accessible via TablePlus / DBeaver (`lwui` / `Water123!`) |
+| **PostgreSQL Database** | `localhost:5432` | Accessible via TablePlus / DBeaver (`sari_user` / `.env` password) |
+| **Redis Cache & Queue** | `localhost:6379` | Cache, sessions, and queue driver |
 
-### CLI Management (`./start.sh` or `./dev.sh`)
+### CLI Management (`./dev.sh`)
 | Command | Description | Example |
 | :--- | :--- | :--- |
-| `./start.sh` | One-click start, initialize, seed & open browser | `./start.sh` |
-| `./start.sh stop` | Stop all containers | `./start.sh stop` |
-| `./start.sh restart` | Restart all containers | `./start.sh restart` |
-| `./start.sh logs [service]` | View live container logs | `./start.sh logs frontend` |
-| `./start.sh status` | View container health & status | `./start.sh status` |
-| `./start.sh seed` | Re-seed starter catalog items | `./start.sh seed` |
-| `./start.sh reset` | Fresh database migration and re-seed | `./start.sh reset` |
-| `./start.sh open` | Re-open the app in default browser | `./start.sh open` |
-| `./start.sh artisan <cmd>` | Execute Laravel artisan command | `./start.sh artisan route:list` |
-| `./start.sh shell [service]` | Open interactive shell in container | `./start.sh shell backend` |
+| `./dev.sh` | One-click start, initialize, seed & open browser | `./dev.sh` |
+| `./dev.sh stop` | Stop all containers | `./dev.sh stop` |
+| `./dev.sh restart` | Restart all containers | `./dev.sh restart` |
+| `./dev.sh logs [service]` | View live container logs | `./dev.sh logs frontend` |
+| `./dev.sh status` | View container health & status | `./dev.sh status` |
+| `./dev.sh seed` | Re-seed starter catalog items | `./dev.sh seed` |
+| `./dev.sh reset` | Fresh database migration and re-seed | `./dev.sh reset` |
+| `./dev.sh open` | Re-open the app in default browser | `./dev.sh open` |
+| `./dev.sh artisan <cmd>` | Execute Laravel artisan command | `./dev.sh artisan route:list` |
+| `./dev.sh shell [service]` | Open interactive shell in container | `./dev.sh shell backend` |
 
 ---
 
-
-## 🚀 Automated CI/CD & Production Deployment
+## 🚀 Production Deployment & Management (`./prod.sh`)
 
 ### 1. Automated Build on Push to `main`
 Whenever you push or merge changes into the `main` branch (or tag a release `v*.*.*`), GitHub Actions will automatically:
@@ -93,19 +93,21 @@ Whenever you push or merge changes into the `main` branch (or tag a release `v*.
 ### 2. Deploying on Your Production Server
 On your production server (or local mini-PC / VPS):
 
-1. Copy the `deploy/` directory to the server.
-2. Copy `deploy/.env.example` to `deploy/.env` and configure your domain & secrets:
+1. Copy the `deploy/` directory to the server:
    ```bash
-   cp deploy/.env.example deploy/.env
-   nano deploy/.env
+   scp -r deploy user@your-server:/opt/sari-ims
+   cd /opt/sari-ims
    ```
-3. Pull the latest release images and launch the stack:
+2. Run the centralized production script:
    ```bash
-   cd deploy
-   docker compose pull
-   docker compose up -d
+   ./prod.sh
    ```
-4. Run migrations on the production backend:
-   ```bash
-   docker compose exec backend php artisan migrate --force
-   ```
+   This automatically provisions `.env` with secure credentials, pulls images, launches PostgreSQL, Redis, Backend, Frontend, and Caddy, and executes migrations.
+
+3. Production CLI commands:
+   - Upgrade with automatic pre-backup: `./prod.sh update`
+   - Backup database: `./prod.sh backup`
+   - Restore database: `./prod.sh restore <backup_file>`
+   - View logs: `./prod.sh logs`
+   - Check status: `./prod.sh status`
+   - Stop stack: `./prod.sh stop`
