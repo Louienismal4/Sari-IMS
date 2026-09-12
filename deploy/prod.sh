@@ -213,8 +213,32 @@ case "$1" in
     echo -e "${BLUE}🚀 Launching production containers...${NC}"
     $DOCKER_CMD compose up -d
     wait_for_db
-    echo -e "${BLUE}📦 Running database migrations...${NC}"
-    $DOCKER_CMD compose exec -T backend php artisan migrate --force
+    echo -ne "${CYAN}⏳ Initializing backend & database migrations...${NC}"
+    backend_ready=false
+    for i in {1..30}; do
+      if $DOCKER_CMD compose exec -T backend php -r "
+        try {
+          \$h = json_decode(@file_get_contents('http://127.0.0.1:8000/api/health'), true);
+          if (\$h && (\$h['status'] === 'ok' || \$h['status'] === 'degraded')) {
+            exit(0);
+          }
+          exit(1);
+        } catch (Exception \$e) {
+          exit(1);
+        }
+      " >/dev/null 2>&1; then
+        echo -e " ${GREEN}✓ Backend ready!${NC}"
+        backend_ready=true
+        break
+      fi
+      echo -ne "."
+      sleep 2
+    done
+
+    if [ "$backend_ready" = false ]; then
+      echo -e "\n${BLUE}📦 Ensuring migrations are applied...${NC}"
+      $DOCKER_CMD compose exec -T backend php artisan migrate --force || true
+    fi
     show_status
     ;;
 
