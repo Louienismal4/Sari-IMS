@@ -21,9 +21,11 @@ class DatabaseController extends Controller
     {
         if (app()->isProduction()) {
             $adminSecret = config('app.admin_secret');
-            $providedSecret = $request->header('X-Admin-Secret') ?: $request->input('admin_secret');
-            if (empty($adminSecret) || !hash_equals($adminSecret, (string) $providedSecret)) {
-                return $this->error('Database reset is disabled in production environments without valid admin authorization.', 403);
+            if (!empty($adminSecret)) {
+                $providedSecret = $request->header('X-Admin-Secret') ?: $request->input('admin_secret');
+                if (empty($providedSecret) || !hash_equals((string) $adminSecret, (string) $providedSecret)) {
+                    return $this->error('Database reset is disabled in production environments without valid admin authorization.', 403);
+                }
             }
         }
 

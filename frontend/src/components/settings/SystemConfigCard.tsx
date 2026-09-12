@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   RotateCw,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   fetchOnboardingStatus,
   testGeminiApiKey,
-  saveOnboardingSetup,
+  updateGeminiApiKey,
+  deleteGeminiApiKey,
   OnboardingStatus,
 } from "@/features/onboarding/api/onboardingService";
 
@@ -41,6 +43,7 @@ export function SystemConfigCard({ showToast }: SystemConfigCardProps) {
   const [testingKey, setTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ valid: boolean; message: string } | null>(null);
   const [savingKey, setSavingKey] = useState(false);
+  const [clearingKey, setClearingKey] = useState(false);
 
   const apiKeyInputId = useId();
 
@@ -85,10 +88,8 @@ export function SystemConfigCard({ showToast }: SystemConfigCardProps) {
     }
     setSavingKey(true);
     try {
-      await saveOnboardingSetup({
-        gemini_api_key: geminiKeyInput.trim(),
-      });
-      showToast("Google Gemini API key updated and saved to centralized .env!", "success");
+      await updateGeminiApiKey(geminiKeyInput.trim());
+      showToast("Google Gemini API key updated and encrypted successfully!", "success");
       setGeminiKeyInput("");
       setTestResult(null);
       await loadStatus();
@@ -97,6 +98,22 @@ export function SystemConfigCard({ showToast }: SystemConfigCardProps) {
       showToast(msg, "error");
     } finally {
       setSavingKey(false);
+    }
+  };
+
+  const handleClearGeminiKey = async () => {
+    setClearingKey(true);
+    try {
+      await deleteGeminiApiKey();
+      showToast("Google Gemini API key removed.", "info");
+      setGeminiKeyInput("");
+      setTestResult(null);
+      await loadStatus();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to remove Gemini key";
+      showToast(msg, "error");
+    } finally {
+      setClearingKey(false);
     }
   };
 
@@ -258,20 +275,35 @@ export function SystemConfigCard({ showToast }: SystemConfigCardProps) {
             )}
           </div>
 
-          <div className="flex justify-between items-center pt-1">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1">
             <span className="text-[11px] font-mono text-zinc-400">
-              Directly writes to root .env
+              AES-256 encrypted in database &amp; synced to .env
             </span>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSaveGeminiKey}
-              disabled={savingKey || !geminiKeyInput.trim()}
-              className="gap-1.5 text-xs h-8 bg-zinc-950 hover:bg-black text-white font-medium rounded-lg"
-            >
-              {savingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              <span>Save to .env</span>
-            </Button>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              {status?.has_gemini_key && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleClearGeminiKey}
+                  disabled={clearingKey || savingKey}
+                  className="gap-1.5 text-xs h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                >
+                  {clearingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  <span>Remove Key</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveGeminiKey}
+                disabled={savingKey || clearingKey || !geminiKeyInput.trim()}
+                className="gap-1.5 text-xs h-8 bg-zinc-950 hover:bg-black text-white font-medium rounded-lg"
+              >
+                {savingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>Save Key</span>
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>

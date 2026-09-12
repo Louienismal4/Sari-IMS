@@ -137,7 +137,44 @@ export async function testDbConnection(): Promise<{ success: boolean; message: s
   }
 }
 
+export interface UpdateIntegrationResponse {
+  status?: "success" | "error";
+  message: string;
+  data?: {
+    provider: string;
+    has_gemini_key: boolean;
+    masked_gemini_key: string | null;
+    model?: string;
+  };
+}
+
+export async function updateGeminiApiKey(
+  apiKey: string,
+  model = "gemini-2.5-flash-lite"
+): Promise<UpdateIntegrationResponse> {
+  return apiClient<UpdateIntegrationResponse>("/settings/integrations", {
+    method: "POST",
+    body: { provider: "gemini", api_key: apiKey, model },
+  });
+}
+
+export async function deleteGeminiApiKey(): Promise<UpdateIntegrationResponse> {
+  return apiClient<UpdateIntegrationResponse>("/settings/integrations/gemini", {
+    method: "DELETE",
+  });
+}
+
 export async function saveOnboardingSetup(payload: LegacyOnboardingPayload): Promise<LegacyOnboardingResponse> {
+  if (payload.gemini_api_key) {
+    const res = await updateGeminiApiKey(payload.gemini_api_key);
+    return {
+      success: true,
+      message: res.message || "Gemini API key updated successfully",
+      store_settings: payload,
+      is_onboarded: true,
+    };
+  }
+
   const setupPayload: SetupPayload = {
     admin: {
       name: payload.owner_name || "Admin",
@@ -151,9 +188,6 @@ export async function saveOnboardingSetup(payload: LegacyOnboardingPayload): Pro
       target_markup_percentage: payload.default_markup_percent ?? 20,
       default_reorder_level: payload.default_reorder_level ?? 5,
     },
-    integrations: payload.gemini_api_key
-      ? { gemini_api_key: payload.gemini_api_key }
-      : undefined,
   };
 
   const res = await completeSetup(setupPayload);

@@ -31,11 +31,13 @@ export function PurgeDatabaseModal({
   const [mode, setMode] = useState<
     "clean_slate" | "demo_seed" | "keep_categories"
   >("clean_slate");
+  const [adminSecret, setAdminSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const challengeInputId = useId();
   const modeSelectId = useId();
+  const adminSecretInputId = useId();
 
   const isChallengeMatched =
     typedChallenge.trim().toLowerCase() === CHALLENGE_PHRASE.toLowerCase();
@@ -48,12 +50,17 @@ export function PurgeDatabaseModal({
     setError(null);
 
     try {
-      const message = await resetDatabaseApi(typedChallenge.trim(), mode);
+      const message = await resetDatabaseApi(
+        typedChallenge.trim(),
+        mode,
+        adminSecret.trim() || undefined
+      );
       // Clear local browser storage queues
       localStorage.removeItem("sari_scanned_receipt_queue");
       sessionStorage.removeItem("sari_receipt_preview");
 
       setTypedChallenge("");
+      setAdminSecret("");
       onOpenChange(false);
       onSuccess(message);
     } catch (err: unknown) {
@@ -67,6 +74,7 @@ export function PurgeDatabaseModal({
   const handleClose = () => {
     if (loading) return;
     setTypedChallenge("");
+    setAdminSecret("");
     setError(null);
     onOpenChange(false);
   };
@@ -129,6 +137,30 @@ export function PurgeDatabaseModal({
                 Reset &amp; Load Demo Sari-Sari Store Products
               </option>
             </select>
+          </div>
+
+          {/* Optional Admin Secret field */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor={adminSecretInputId}
+                className="text-xs font-semibold text-zinc-700"
+              >
+                Admin Authorization Key
+              </label>
+              <span className="text-[10px] text-zinc-400 font-normal">
+                Optional (only if ADMIN_API_KEY is set in .env)
+              </span>
+            </div>
+            <Input
+              id={adminSecretInputId}
+              type="password"
+              autoComplete="off"
+              placeholder="Leave blank unless configured..."
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              className="bg-white font-mono text-xs border-zinc-200"
+            />
           </div>
 
           {/* Security Challenge Box */}

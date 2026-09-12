@@ -16,6 +16,7 @@ class ResetDatabaseRequest extends FormRequest
         return [
             'confirmation' => 'required|string',
             'mode' => 'nullable|string|in:clean_slate,demo_seed,keep_categories',
+            'admin_secret' => 'nullable|string',
         ];
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DatabaseController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReceiptScanController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\SetupController;
 use App\Http\Controllers\Api\StockMovementController;
 use Illuminate\Support\Facades\Route;
@@ -76,4 +77,12 @@ Route::middleware('throttle:120,1')->group(function () {
     Route::get('/backup/export', [\App\Http\Controllers\Api\BackupController::class, 'export']);
     Route::post('/backup/restore', [\App\Http\Controllers\Api\BackupController::class, 'restore'])
         ->middleware('throttle:10,1');
+
+    // System Settings & Integrations
+    Route::post('/settings/integrations', [SettingsController::class, 'updateIntegration'])
+        ->middleware('throttle:30,1');
+    Route::delete('/settings/integrations/{provider}', [SettingsController::class, 'deleteIntegration'])
+        ->middleware('throttle:30,1');
+    Route::post('/settings/test-integration', [SettingsController::class, 'testIntegration'])
+        ->middleware('throttle:15,1');
 });

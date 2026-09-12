@@ -20,6 +20,7 @@
   </source>
   <php>
     <env name="APP_ENV" value="testing" />
+    <env name="APP_KEY" value="base64:w8O6oGzX9Vq7aH3kJ8bY2uM4vL1eS5dP6rT0nQ7mK9A=" />
     <env name="APP_MAINTENANCE_DRIVER" value="file" />
     <env name="BCRYPT_ROUNDS" value="4" />
     <env name="BROADCAST_CONNECTION" value="null" />
