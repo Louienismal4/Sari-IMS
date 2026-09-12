@@ -9,7 +9,6 @@ import {
   Package,
   Settings,
   ScanBarcode,
-  RefreshCw,
   Coins,
   TrendingUp,
   Layers,
@@ -32,7 +31,6 @@ interface AppSidebarProps {
   totalSKUs?: number;
   totalCapital?: number;
   totalTubo?: number;
-  onRefresh?: () => void;
 }
 
 export function AppSidebar({
@@ -44,7 +42,6 @@ export function AppSidebar({
   totalSKUs = 0,
   totalCapital = 0,
   totalTubo = 0,
-  onRefresh,
 }: AppSidebarProps) {
   const pathname = usePathname();
 
@@ -269,25 +266,6 @@ export function AppSidebar({
                 </div>
               </CardContent>
             </Card>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-3 border-t border-zinc-100 text-[11px] text-zinc-400 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>MySQL Synced</span>
-          </div>
-          {onRefresh && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onRefresh}
-              title="Refresh data"
-              className="h-6 w-6 text-zinc-400 hover:text-zinc-700"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </Button>
           )}
         </div>
       </aside>
