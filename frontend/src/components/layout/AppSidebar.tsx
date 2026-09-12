@@ -31,6 +31,7 @@ interface AppSidebarProps {
   totalSKUs?: number;
   totalCapital?: number;
   totalTubo?: number;
+  onRefresh?: () => void | Promise<void>;
 }
 
 export function AppSidebar({

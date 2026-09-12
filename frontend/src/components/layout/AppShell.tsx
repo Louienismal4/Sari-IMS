@@ -18,7 +18,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     totalSKUs,
     totalCapital,
     totalTubo,
-    refreshInventory,
     isOnboarded,
   } = useInventory();
 
@@ -54,7 +53,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         totalSKUs={totalSKUs}
         totalCapital={totalCapital}
         totalTubo={totalTubo}
-        onRefresh={refreshInventory}
       />
 
       {/* Dynamic Inner Page Content */}
