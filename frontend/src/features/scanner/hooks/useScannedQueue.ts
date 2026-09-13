@@ -56,6 +56,7 @@ export function useScannedQueue() {
 
     try {
       const payload = scannedItems.map((item) => ({
+        id: item.matched_product_id || undefined,
         name: item.name,
         original_name: item.original_name || item.name,
         barcode: item.barcode || null,
@@ -65,9 +66,10 @@ export function useScannedQueue() {
         selling_price: item.selling_price,
         stock_quantity: item.stock_quantity || 1,
         reorder_level: item.reorder_level || 5,
+        update_mode: item.update_mode || "add",
       }));
 
-      const imported = await batchStoreProducts(payload);
+      const imported = await batchStoreProducts(payload, "add");
       clearQueue();
       return imported.length;
     } finally {

@@ -36,7 +36,7 @@ export async function deleteProduct(id: number): Promise<void> {
 }
 
 export async function batchStoreProducts(
-  products: Partial<Product>[],
+  products: (Partial<Product> & { update_mode?: "replace" | "add" })[],
   updateMode: "replace" | "add" = "replace"
 ): Promise<Product[]> {
   return apiClient<Product[]>("/products/batch", {

@@ -15,6 +15,12 @@ import { useBarcodeScanner } from "@/features/scanner/hooks/useBarcodeScanner";
 import { useReceiptScanner } from "@/features/scanner/hooks/useReceiptScanner";
 import { useScannedQueue } from "@/features/scanner/hooks/useScannedQueue";
 import { useProductModal } from "@/features/products/hooks/useProductModal";
+import {
+  autoMatchScannedItems,
+  linkScannedItemToProduct,
+  unlinkScannedItem,
+  convertScannedItemPackToPieces,
+} from "@/features/scanner/utils/productMatcher";
 
 interface DeleteModalState {
   isOpen: boolean;
@@ -57,11 +63,72 @@ export default function ManageStationPage() {
   // Modal hook
   const productModal = useProductModal();
 
-  // Receipt Scanner hook
+  // Receipt Scanner hook with automatic product matching
+  const handleReceiptItemsScanned = useCallback(
+    (newItems: ScannedItem[]) => {
+      const matched = autoMatchScannedItems(newItems, products);
+      addItems(matched);
+    },
+    [products, addItems]
+  );
+
   const receiptScanner = useReceiptScanner({
-    onItemsScanned: addItems,
+    onItemsScanned: handleReceiptItemsScanned,
     showToast,
   });
+
+  const handleLinkProduct = useCallback(
+    (index: number, product: Product) => {
+      const target = scannedItems[index];
+      if (!target) return;
+      const updated = linkScannedItemToProduct(target, product, target.update_mode || "add");
+      updateItem(index, updated);
+      showToast(`Linked "${updated.name}" to catalog product "${product.name}"`, "success");
+    },
+    [scannedItems, updateItem, showToast]
+  );
+
+  const handleUnlinkProduct = useCallback(
+    (index: number) => {
+      const target = scannedItems[index];
+      if (!target) return;
+      const updated = unlinkScannedItem(target);
+      updateItem(index, updated);
+      showToast(`Unlinked "${updated.name}". Marked as New Product.`, "info");
+    },
+    [scannedItems, updateItem, showToast]
+  );
+
+  const handleToggleUpdateMode = useCallback(
+    (index: number) => {
+      const target = scannedItems[index];
+      if (!target) return;
+      const nextMode: "replace" | "add" = target.update_mode === "replace" ? "add" : "replace";
+      const updated: ScannedItem = { ...target, update_mode: nextMode };
+      updateItem(index, updated);
+      showToast(
+        nextMode === "replace"
+          ? `Switched "${target.name}" to Replace mode.`
+          : `Switched "${target.name}" to Add (Restock) mode.`,
+        "info"
+      );
+    },
+    [scannedItems, updateItem, showToast]
+  );
+
+  const handleConvertPack = useCallback(
+    (index: number, piecesPerPack: number) => {
+      const target = scannedItems[index];
+      if (!target) return;
+      const updated = convertScannedItemPackToPieces(target, piecesPerPack);
+      updateItem(index, updated);
+      showToast(
+        `Converted "${updated.name}" to ${updated.stock_quantity} ${updated.unit}s.`,
+        "success"
+      );
+    },
+    [scannedItems, updateItem, showToast]
+  );
 
   // Handle scanned barcode dispatch
   const handleBarcodeDetected = useCallback(
@@ -157,8 +224,10 @@ export default function ManageStationPage() {
     e.preventDefault();
 
     if (editingScannedIndex !== null) {
+      const originalScanned = scannedItems[editingScannedIndex];
       // Update item in staging queue
       const updated: ScannedItem = {
+        ...originalScanned,
         name: productModal.formData.name.trim(),
         original_name: productModal.formData.original_name?.trim() || productModal.formData.name.trim(),
         barcode: productModal.formData.barcode?.trim() || null,
@@ -243,6 +312,7 @@ export default function ManageStationPage() {
               tableSearch={tableSearch}
               setTableSearch={setTableSearch}
               batchImporting={batchImporting}
+              catalogProducts={products}
               onClearQueue={() =>
                 setDeleteModalState({
                   isOpen: true,
@@ -262,6 +332,10 @@ export default function ManageStationPage() {
                   itemName: scannedItems[idx]?.name || "item",
                 })
               }
+              onLinkProduct={handleLinkProduct}
+              onUnlinkProduct={handleUnlinkProduct}
+              onToggleUpdateMode={handleToggleUpdateMode}
+              onConvertPack={handleConvertPack}
             />
 
             <QueueSummaryBar scannedItems={scannedItems} />

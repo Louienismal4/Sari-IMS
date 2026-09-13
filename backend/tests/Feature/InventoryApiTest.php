@@ -194,4 +194,88 @@ class InventoryApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['products.0.name', 'products.0.cost_price']);
     }
+
+    public function test_batch_store_links_existing_product_by_id_in_add_mode_and_logs_stock_movement(): void
+    {
+        $existing = \App\Models\Product::create([
+            'name' => 'Dowee White',
+            'barcode' => null,
+            'unit' => 'pc',
+            'cost_price' => 10.00,
+            'selling_price' => 15.00,
+            'stock_quantity' => 5,
+        ]);
+
+        $payload = [
+            'products' => [
+                [
+                    'id' => $existing->id,
+                    'name' => 'DOWEE WHITE',
+                    'barcode' => '4809999999999',
+                    'unit' => 'pc',
+                    'cost_price' => 12.00,
+                    'selling_price' => 15.00,
+                    'stock_quantity' => 10,
+                    'update_mode' => 'add',
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/products/batch', $payload);
+        $response->assertStatus(201);
+
+        $fresh = $existing->fresh();
+        $this->assertEquals(15, $fresh->stock_quantity); // 5 + 10
+        $this->assertEquals(12.00, (float) $fresh->cost_price);
+        $this->assertEquals(15.00, (float) $fresh->selling_price);
+        $this->assertEquals('4809999999999', $fresh->barcode); // backfilled
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $existing->id,
+            'type' => 'restock',
+            'quantity_change' => 10,
+        ]);
+    }
+
+    public function test_batch_store_links_existing_product_by_id_in_replace_mode(): void
+    {
+        $existing = \App\Models\Product::create([
+            'name' => 'Dowee Choco',
+            'barcode' => '4801234567890',
+            'unit' => 'pc',
+            'cost_price' => 10.00,
+            'selling_price' => 15.00,
+            'stock_quantity' => 8,
+        ]);
+
+        $payload = [
+            'products' => [
+                [
+                    'id' => $existing->id,
+                    'name' => 'Dowee Choco',
+                    'barcode' => '4809999999999', // Different barcode, should not overwrite existing
+                    'unit' => 'pc',
+                    'cost_price' => 11.00,
+                    'selling_price' => 15.00,
+                    'stock_quantity' => 20,
+                    'update_mode' => 'replace',
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/products/batch', $payload);
+        $response->assertStatus(201);
+
+        $fresh = $existing->fresh();
+        $this->assertEquals(20, $fresh->stock_quantity);
+        $this->assertEquals(11.00, (float) $fresh->cost_price);
+        $this->assertEquals('4801234567890', $fresh->barcode); // Kept existing
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $existing->id,
+            'type' => 'restock',
+            'quantity_change' => 12, // 20 - 8
+        ]);
+    }
 }
+

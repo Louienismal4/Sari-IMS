@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\StockMovement;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -54,38 +55,76 @@ class ProductService
 
         DB::transaction(function () use ($items, $updateMode, &$processed) {
             foreach ($items as $item) {
-                if (!empty($item['barcode'])) {
+                $existing = null;
+                $effectiveMode = $item['update_mode'] ?? $updateMode;
+
+                if (!empty($item['id'])) {
+                    $existing = Product::lockForUpdate()->find($item['id']);
+                } elseif (!empty($item['barcode'])) {
                     $cleanBarcode = trim($item['barcode']);
-                    $existing = Product::where('barcode', $cleanBarcode)->first();
-                    if ($existing) {
-                        if ($updateMode === 'add') {
-                            $existing->stock_quantity += ($item['stock_quantity'] ?? 0);
-                        } else {
-                            $existing->stock_quantity = ($item['stock_quantity'] ?? $existing->stock_quantity);
-                        }
-                        if (!empty($item['name'])) {
-                            $existing->name = $item['name'];
-                        }
-                        $existing->cost_price = $item['cost_price'];
-                        $existing->selling_price = $item['selling_price'];
-                        if (!empty($item['unit'])) {
-                            $existing->unit = $item['unit'];
-                        }
-                        if (isset($item['category_id'])) {
-                            $existing->category_id = $item['category_id'];
-                        }
-                        if (isset($item['reorder_level'])) {
-                            $existing->reorder_level = $item['reorder_level'];
-                        }
-                        if (!empty($item['original_name'])) {
-                            $existing->original_name = $item['original_name'];
-                        }
-                        $existing->save();
-                        $processed[] = $existing->load('category');
-                        continue;
-                    }
+                    $existing = Product::lockForUpdate()->where('barcode', $cleanBarcode)->first();
                 }
-                $newProduct = Product::create($item);
+
+                if ($existing) {
+                    $previousStock = (int) $existing->stock_quantity;
+                    $itemQty = (int) ($item['stock_quantity'] ?? 0);
+
+                    if ($effectiveMode === 'add') {
+                        $newStock = $previousStock + $itemQty;
+                        $quantityChange = $itemQty;
+                    } else {
+                        $newStock = $itemQty;
+                        $quantityChange = $newStock - $previousStock;
+                    }
+
+                    $existing->stock_quantity = $newStock;
+
+                    if (!empty($item['name'])) {
+                        $existing->name = $item['name'];
+                    }
+                    if (isset($item['cost_price'])) {
+                        $existing->cost_price = $item['cost_price'];
+                    }
+                    if (isset($item['selling_price'])) {
+                        $existing->selling_price = $item['selling_price'];
+                    }
+                    if (!empty($item['unit'])) {
+                        $existing->unit = $item['unit'];
+                    }
+                    if (isset($item['category_id'])) {
+                        $existing->category_id = $item['category_id'];
+                    }
+                    if (isset($item['reorder_level'])) {
+                        $existing->reorder_level = $item['reorder_level'];
+                    }
+                    if (!empty($item['original_name'])) {
+                        $existing->original_name = $item['original_name'];
+                    }
+
+                    // Backfill barcode if existing barcode is empty
+                    if (!empty($item['barcode']) && empty($existing->barcode)) {
+                        $existing->barcode = trim($item['barcode']);
+                    }
+
+                    $existing->save();
+
+                    if ($quantityChange !== 0) {
+                        StockMovement::create([
+                            'product_id' => $existing->id,
+                            'type' => $quantityChange > 0 ? 'restock' : 'adjustment',
+                            'quantity_change' => $quantityChange,
+                            'notes' => 'Restocked via receipt scan',
+                            'created_at' => now(),
+                        ]);
+                    }
+
+                    $processed[] = $existing->load('category');
+                    continue;
+                }
+
+                $newProductData = $item;
+                unset($newProductData['id'], $newProductData['update_mode']);
+                $newProduct = Product::create($newProductData);
                 $processed[] = $newProduct->load('category');
             }
         });

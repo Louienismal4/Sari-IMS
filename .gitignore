@@ -16,7 +16,9 @@ deploy/.env
 deploy/.env.*
 !deploy/.env.example
 deploy/data/
-docs
+docs/*
+!docs/agents/
+!docs/adr/
 
 # Editor & SQL scratchpads
 .vscode/
