@@ -252,21 +252,38 @@ case "$1" in
     echo -e "${BLUE}=====================================================${NC}"
     echo -e "${BLUE} 🔄 Upgrading Sari-IMS Production Stack${NC}"
     echo -e "${BLUE}=====================================================${NC}"
-    echo -e "${CYAN}Step 1: Creating automated pre-update safety backup...${NC}"
+
+    echo -e "${CYAN}Step 1: Updating CLI operation scripts...${NC}"
+    if [ -d "$SCRIPT_DIR/.git" ] || [ -d "$DEPLOY_DIR/../.git" ]; then
+      git -C "$SCRIPT_DIR" pull --ff-only 2>/dev/null || git pull --ff-only 2>/dev/null || true
+      echo -e "${GREEN}✓ Git repository synced.${NC}"
+    else
+      if curl -fsSL --connect-timeout 6 "https://raw.githubusercontent.com/Louienismal4/Sari-IMS/main/deploy/prod.sh" -o "${DEPLOY_DIR}/prod.sh.tmp" 2>/dev/null && [ -s "${DEPLOY_DIR}/prod.sh.tmp" ]; then
+        mv "${DEPLOY_DIR}/prod.sh.tmp" "${DEPLOY_DIR}/prod.sh"
+        chmod +x "${DEPLOY_DIR}/prod.sh"
+        if [ -f "$SCRIPT_DIR/prod.sh" ] && [ "$SCRIPT_DIR" != "$DEPLOY_DIR" ]; then
+          cp "${DEPLOY_DIR}/prod.sh" "$SCRIPT_DIR/prod.sh"
+          chmod +x "$SCRIPT_DIR/prod.sh"
+        fi
+        echo -e "${GREEN}✓ Updated prod.sh CLI script to latest version.${NC}"
+      fi
+    fi
+
+    echo -e "${CYAN}Step 2: Creating automated pre-update safety backup...${NC}"
     do_backup || { echo -e "${YELLOW}⚠️ Backup failed, continuing upgrade...${NC}"; }
 
-    echo -e "${CYAN}Step 2: Pulling latest container images...${NC}"
+    echo -e "${CYAN}Step 3: Pulling latest container images...${NC}"
     $DOCKER_CMD compose pull
 
-    echo -e "${CYAN}Step 3: Recreating containers gracefully...${NC}"
+    echo -e "${CYAN}Step 4: Recreating containers gracefully...${NC}"
     $DOCKER_CMD compose up -d --remove-orphans
 
     wait_for_db
 
-    echo -e "${CYAN}Step 4: Executing database migrations...${NC}"
+    echo -e "${CYAN}Step 5: Executing database migrations...${NC}"
     $DOCKER_CMD compose exec -T backend php artisan migrate --force
 
-    echo -e "${CYAN}Step 5: Verifying health endpoint...${NC}"
+    echo -e "${CYAN}Step 6: Verifying health endpoint...${NC}"
     if $DOCKER_CMD compose exec -T backend php -r "
       try {
         \$h = json_decode(@file_get_contents('http://127.0.0.1:8000/api/health'), true);
