@@ -79,26 +79,9 @@ class ProductService
 
                     $existing->stock_quantity = $newStock;
 
-                    if (!empty($item['name'])) {
-                        $existing->name = $item['name'];
-                    }
+                    // Update wholesale cost from receipt
                     if (isset($item['cost_price'])) {
                         $existing->cost_price = $item['cost_price'];
-                    }
-                    if (isset($item['selling_price'])) {
-                        $existing->selling_price = $item['selling_price'];
-                    }
-                    if (!empty($item['unit'])) {
-                        $existing->unit = $item['unit'];
-                    }
-                    if (isset($item['category_id'])) {
-                        $existing->category_id = $item['category_id'];
-                    }
-                    if (isset($item['reorder_level'])) {
-                        $existing->reorder_level = $item['reorder_level'];
-                    }
-                    if (!empty($item['original_name'])) {
-                        $existing->original_name = $item['original_name'];
                     }
 
                     // Backfill barcode if existing barcode is empty
@@ -106,12 +89,36 @@ class ProductService
                         $existing->barcode = trim($item['barcode']);
                     }
 
+                    // If matched by barcode only (legacy batch store), update attributes if provided.
+                    // If matched explicitly by product ID (receipt restock), preserve catalog product's shelf selling price,
+                    // name, unit, and category to prevent receipt OCR noise from corrupting catalog records.
+                    if (empty($item['id']) && !empty($item['barcode'])) {
+                        if (!empty($item['name'])) {
+                            $existing->name = $item['name'];
+                        }
+                        if (isset($item['selling_price'])) {
+                            $existing->selling_price = $item['selling_price'];
+                        }
+                        if (!empty($item['unit'])) {
+                            $existing->unit = $item['unit'];
+                        }
+                        if (isset($item['category_id'])) {
+                            $existing->category_id = $item['category_id'];
+                        }
+                        if (isset($item['reorder_level'])) {
+                            $existing->reorder_level = $item['reorder_level'];
+                        }
+                        if (!empty($item['original_name'])) {
+                            $existing->original_name = $item['original_name'];
+                        }
+                    }
+
                     $existing->save();
 
                     if ($quantityChange !== 0) {
                         StockMovement::create([
                             'product_id' => $existing->id,
-                            'type' => $quantityChange > 0 ? 'restock' : 'adjustment',
+                            'type' => 'restock',
                             'quantity_change' => $quantityChange,
                             'notes' => 'Restocked via receipt scan',
                             'created_at' => now(),

@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Product } from "@/features/products/types/product.types";
 import { ScannedItem } from "@/features/scanner/types/scanner.types";
-import { computeSimilarity } from "@/features/scanner/utils/productMatcher";
+import { searchAndRankCatalogProducts } from "@/features/scanner/utils/productMatcher";
 
 interface ProductPickerModalProps {
   isOpen: boolean;
@@ -43,26 +43,7 @@ export function ProductPickerModal({
   }, [isOpen, scannedItem]);
 
   const filteredProducts = useMemo(() => {
-    if (!catalogProducts || catalogProducts.length === 0) return [];
-    if (!search.trim()) {
-      return catalogProducts.slice(0, 50);
-    }
-
-    const q = search.toLowerCase().trim();
-    return catalogProducts
-      .map((p) => {
-        const nameMatch = p.name.toLowerCase().includes(q);
-        const barcodeMatch = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
-        const sim = computeSimilarity(search, p.name);
-        let score = sim;
-        if (nameMatch) score += 0.5;
-        if (barcodeMatch) score += 1.0;
-        return { product: p, score };
-      })
-      .filter((entry) => entry.score > 0.2)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 40)
-      .map((entry) => entry.product);
+    return searchAndRankCatalogProducts(search, catalogProducts, 40);
   }, [catalogProducts, search]);
 
   if (!scannedItem) return null;

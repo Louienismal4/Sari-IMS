@@ -195,7 +195,7 @@ class InventoryApiTest extends TestCase
             ->assertJsonValidationErrors(['products.0.name', 'products.0.cost_price']);
     }
 
-    public function test_batch_store_links_existing_product_by_id_in_add_mode_and_logs_stock_movement(): void
+    public function test_batch_store_matches_existing_product_by_id_in_add_mode_and_logs_stock_movement(): void
     {
         $existing = \App\Models\Product::create([
             'name' => 'Dowee White',
@@ -214,7 +214,7 @@ class InventoryApiTest extends TestCase
                     'barcode' => '4809999999999',
                     'unit' => 'pc',
                     'cost_price' => 12.00,
-                    'selling_price' => 15.00,
+                    'selling_price' => 18.00, // Even if receipt suggests 18.00, shelf price 15.00 is preserved
                     'stock_quantity' => 10,
                     'update_mode' => 'add',
                 ],
@@ -227,7 +227,8 @@ class InventoryApiTest extends TestCase
         $fresh = $existing->fresh();
         $this->assertEquals(15, $fresh->stock_quantity); // 5 + 10
         $this->assertEquals(12.00, (float) $fresh->cost_price);
-        $this->assertEquals(15.00, (float) $fresh->selling_price);
+        $this->assertEquals(15.00, (float) $fresh->selling_price); // Preserved shelf price per ADR-0001
+        $this->assertEquals('Dowee White', $fresh->name); // Preserved pristine catalog name
         $this->assertEquals('4809999999999', $fresh->barcode); // backfilled
 
         $this->assertDatabaseHas('stock_movements', [
@@ -237,7 +238,7 @@ class InventoryApiTest extends TestCase
         ]);
     }
 
-    public function test_batch_store_links_existing_product_by_id_in_replace_mode(): void
+    public function test_batch_store_matches_existing_product_by_id_in_replace_mode(): void
     {
         $existing = \App\Models\Product::create([
             'name' => 'Dowee Choco',

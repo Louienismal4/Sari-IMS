@@ -122,7 +122,16 @@ export function findBestProductMatch(
     };
   }
 
-  if (bestScore >= 0.75) {
+  if (bestScore >= 0.98) {
+    return {
+      matchedProduct: bestProduct,
+      suggestedProduct: null,
+      confidence: "exact",
+      score: bestScore,
+    };
+  }
+
+  if (bestScore >= 0.80) {
     return {
       matchedProduct: bestProduct,
       suggestedProduct: null,
@@ -131,7 +140,7 @@ export function findBestProductMatch(
     };
   }
 
-  if (bestScore >= 0.50) {
+  if (bestScore >= 0.60) {
     return {
       matchedProduct: null,
       suggestedProduct: bestProduct,
@@ -146,6 +155,36 @@ export function findBestProductMatch(
     confidence: null,
     score: bestScore,
   };
+}
+
+/**
+ * Searches and ranks catalog products by relevance to a query string.
+ */
+export function searchAndRankCatalogProducts(
+  searchQuery: string,
+  catalogProducts: Product[],
+  limit: number = 40
+): Product[] {
+  if (!catalogProducts || catalogProducts.length === 0) return [];
+  if (!searchQuery.trim()) {
+    return catalogProducts.slice(0, limit);
+  }
+
+  const q = searchQuery.toLowerCase().trim();
+  return catalogProducts
+    .map((p) => {
+      const nameMatch = p.name.toLowerCase().includes(q);
+      const barcodeMatch = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
+      const sim = computeSimilarity(searchQuery, p.name);
+      let score = sim;
+      if (nameMatch) score += 0.5;
+      if (barcodeMatch) score += 1.0;
+      return { product: p, score };
+    })
+    .filter((entry) => entry.score > 0.2)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((entry) => entry.product);
 }
 
 /**
