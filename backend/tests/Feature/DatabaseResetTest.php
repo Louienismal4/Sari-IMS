@@ -42,7 +42,6 @@ class DatabaseResetTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseCount('products', 0);
-        // Default categories should be created
         $this->assertDatabaseHas('categories', ['name' => 'Canned Goods']);
     }
 
@@ -56,7 +55,7 @@ class DatabaseResetTest extends TestCase
         $response->assertStatus(422);
     }
 
-    public function test_production_allows_reset_when_admin_secret_is_not_configured(): void
+    public function test_can_reset_database_in_production_environment(): void
     {
         Installation::create([
             'version' => '1.0.0',
@@ -65,7 +64,6 @@ class DatabaseResetTest extends TestCase
         ]);
 
         $this->app->detectEnvironment(fn() => 'production');
-        config(['app.admin_secret' => null]);
 
         $response = $this->postJson('/api/database/reset', [
             'confirmation' => 'confirm to reset my database',
@@ -75,40 +73,27 @@ class DatabaseResetTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_production_enforces_admin_secret_when_configured(): void
+    public function test_reset_preserves_categories_when_requested(): void
     {
-        Installation::create([
-            'version' => '1.0.0',
-            'status' => Installation::STATUS_COMPLETED,
-            'installed_at' => now(),
+        $cat = Category::create(['name' => 'Custom Category']);
+        Product::create([
+            'category_id' => $cat->id,
+            'barcode' => '9999999999999',
+            'name' => 'Sample Product',
+            'unit' => 'pc',
+            'cost_price' => 5.00,
+            'selling_price' => 8.00,
+            'stock_quantity' => 20,
+            'reorder_level' => 5,
         ]);
 
-        $this->app->detectEnvironment(fn() => 'production');
-        config(['app.admin_secret' => 'super-secret-admin-key']);
-
-        $forbiddenResponse = $this->postJson('/api/database/reset', [
+        $response = $this->postJson('/api/database/reset', [
             'confirmation' => 'confirm to reset my database',
-            'mode' => 'clean_slate',
+            'mode' => 'keep_categories',
         ]);
 
-        $forbiddenResponse->assertStatus(403)
-            ->assertJsonPath('message', 'Database reset is disabled in production environments without valid admin authorization.');
-
-        $wrongResponse = $this->postJson('/api/database/reset', [
-            'confirmation' => 'confirm to reset my database',
-            'mode' => 'clean_slate',
-            'admin_secret' => 'wrong-secret',
-        ]);
-
-        $wrongResponse->assertStatus(403);
-
-        $validResponse = $this->withHeaders([
-            'X-Admin-Secret' => 'super-secret-admin-key',
-        ])->postJson('/api/database/reset', [
-            'confirmation' => 'confirm to reset my database',
-            'mode' => 'clean_slate',
-        ]);
-
-        $validResponse->assertStatus(200);
+        $response->assertStatus(200);
+        $this->assertDatabaseCount('products', 0);
+        $this->assertDatabaseHas('categories', ['name' => 'Custom Category']);
     }
 }

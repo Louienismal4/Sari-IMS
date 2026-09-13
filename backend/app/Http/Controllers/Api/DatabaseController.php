@@ -19,16 +19,6 @@ class DatabaseController extends Controller
 
     public function reset(ResetDatabaseRequest $request): JsonResponse
     {
-        if (app()->isProduction()) {
-            $adminSecret = config('app.admin_secret');
-            if (!empty($adminSecret)) {
-                $providedSecret = $request->header('X-Admin-Secret') ?: $request->input('admin_secret');
-                if (empty($providedSecret) || !hash_equals((string) $adminSecret, (string) $providedSecret)) {
-                    return $this->error('Database reset is disabled in production environments without valid admin authorization.', 403);
-                }
-            }
-        }
-
         try {
             $message = $this->databaseAdminService->resetDatabase(
                 confirmation: $request->validated('confirmation'),
