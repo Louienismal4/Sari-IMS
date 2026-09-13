@@ -8,6 +8,7 @@
 #   ./prod.sh update            # Safe upgrade: automated backup, pull, migrate, verify
 #   ./prod.sh backup            # Create atomic compressed PostgreSQL backup
 #   ./prod.sh restore <file>    # Restore database from backup archive
+#   ./prod.sh reset [options]   # Purge/reset database (--fresh, --seed, -y)
 #   ./prod.sh stop              # Stop production containers
 #   ./prod.sh restart           # Restart production containers
 #   ./prod.sh logs [svc]        # Follow live container logs
@@ -39,6 +40,7 @@ show_help() {
   echo "  update            Zero-downtime upgrade with automated pre-backup"
   echo "  backup            Create compressed PostgreSQL backup in backups/"
   echo "  restore <file>    Restore database from a .sql.gz backup"
+  echo "  reset [opts]      Purge & reset database (--fresh, --seed, --keep-categories, -y)"
   echo "  stop | down       Stop all production containers"
   echo "  restart           Restart all production containers"
   echo "  logs [service]    Follow live container logs (e.g. ./prod.sh logs caddy)"
@@ -155,6 +157,7 @@ show_status() {
   echo -e "  • Check logs:      ${BLUE}./prod.sh logs${NC}"
   echo -e "  • Check status:    ${BLUE}./prod.sh status${NC}"
   echo -e "  • Create backup:   ${BLUE}./prod.sh backup${NC}"
+  echo -e "  • Reset database:  ${BLUE}./prod.sh reset${NC}"
   echo -e "  • Update system:   ${BLUE}./prod.sh update${NC}"
   echo -e "  • Stop system:     ${BLUE}./prod.sh stop${NC}"
   echo -e "${GREEN}=====================================================${NC}"
@@ -316,6 +319,63 @@ case "$1" in
         exit 0
         ;;
     esac
+    ;;
+
+  reset|reset-db|reset:db)
+    ensure_docker
+    setup_env
+    shift || true
+
+    mode="clean_slate"
+    force=false
+    skip_backup=false
+
+    for arg in "$@"; do
+      case "$arg" in
+        --fresh|--all) mode="fresh" ;;
+        --seed|--demo) mode="demo_seed" ;;
+        --keep-categories) mode="keep_categories" ;;
+        --clean) mode="clean_slate" ;;
+        --mode=*) mode="${arg#*=}" ;;
+        -y|--yes|--force) force=true ;;
+        --no-backup) skip_backup=true ;;
+      esac
+    done
+
+    echo ""
+    echo -e "${YELLOW}=====================================================${NC}"
+    echo -e "${YELLOW} ⚠️  RESET PRODUCTION DATABASE (Mode: ${mode})${NC}"
+    echo -e "${YELLOW}=====================================================${NC}"
+    if [ "$mode" = "fresh" ]; then
+      echo -e "${RED}This will DROP ALL TABLES and reset the system for /setup.${NC}"
+    elif [ "$mode" = "demo_seed" ]; then
+      echo -e "${YELLOW}This will wipe products, sales, audits, and seed demo items.${NC}"
+    elif [ "$mode" = "keep_categories" ]; then
+      echo -e "${YELLOW}This will wipe products, sales, audits, and preserve categories.${NC}"
+    else
+      echo -e "${YELLOW}This will purge products, sales, debts, & audits.${NC}"
+      echo -e "Store identity, admin user, and settings are preserved."
+    fi
+    echo ""
+
+    if [ "$force" = false ]; then
+      read -rp "Are you sure you want to proceed? (y/N): " confirm
+      case "$confirm" in
+        [yY][eE][sS]|[yY]) ;;
+        *) echo "Database reset cancelled."; exit 0 ;;
+      esac
+    fi
+
+    if [ "$skip_backup" = false ]; then
+      echo -e "${CYAN}Step 1: Creating safety backup before reset...${NC}"
+      do_backup || echo -e "${YELLOW}⚠️  Backup failed, continuing reset...${NC}"
+    fi
+
+    echo -e "${BLUE}Step 2: Resetting database in production container...${NC}"
+    $DOCKER_CMD compose exec -T backend php artisan sari:reset-db --mode="$mode" --force
+    echo -e "${GREEN}=====================================================${NC}"
+    echo -e "${GREEN}✓ Production database reset successfully (${mode})!${NC}"
+    echo -e "${GREEN}=====================================================${NC}"
     ;;
 
   stop|down)
