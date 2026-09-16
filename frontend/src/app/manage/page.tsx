@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { Camera, Package } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ReceiptScannerCard } from "@/components/station/ReceiptScannerCard";
 import { BarcodeScannerCard } from "@/components/station/BarcodeScannerCard";
@@ -50,7 +52,8 @@ export default function ManageStationPage() {
     importQueue,
   } = useScannedQueue();
 
-  // Table search & delete modal
+  // Table search, delete modal & mobile view tab
+  const [mobileTab, setMobileTab] = useState<"queue" | "scanners">("scanners");
   const [tableSearch, setTableSearch] = useState("");
   const [editingScannedIndex, setEditingScannedIndex] = useState<number | null>(null);
   const [deleteModalState, setDeleteModalState] = useState<DeleteModalState>({
@@ -68,6 +71,7 @@ export default function ManageStationPage() {
     (newItems: ScannedItem[]) => {
       const matched = autoMatchScannedItems(newItems, products);
       addItems(matched);
+      setMobileTab("queue");
     },
     [products, addItems]
   );
@@ -177,19 +181,6 @@ export default function ManageStationPage() {
   // Barcode Scanner hook
   const barcodeScanner = useBarcodeScanner(handleBarcodeDetected);
 
-  // Filtered queue items
-  const filteredScannedItems = useMemo(() => {
-    if (!tableSearch.trim()) return scannedItems;
-    const q = tableSearch.toLowerCase().trim();
-    return scannedItems.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        (item.original_name && item.original_name.toLowerCase().includes(q)) ||
-        (item.barcode && item.barcode.toLowerCase().includes(q)) ||
-        (item.category_name && item.category_name.toLowerCase().includes(q))
-    );
-  }, [scannedItems, tableSearch]);
-
   // Open modal to edit a scanned item in queue
   const handleOpenEditScannedItem = (item: ScannedItem, index: number) => {
     setEditingScannedIndex(index);
@@ -206,6 +197,10 @@ export default function ManageStationPage() {
       reorder_level: item.reorder_level,
       category: null,
     });
+    productModal.setFormData((prev) => ({
+      ...prev,
+      update_mode: item.update_mode || "add",
+    }));
   };
 
   const handleUpdateScannedItemField = (
@@ -239,9 +234,11 @@ export default function ManageStationPage() {
         selling_price: productModal.formData.selling_price,
         stock_quantity: parseInt(productModal.formData.stock_quantity, 10) || 1,
         reorder_level: parseInt(productModal.formData.reorder_level, 10) || 5,
+        update_mode: productModal.formData.update_mode || originalScanned.update_mode || "add",
       };
       updateItem(editingScannedIndex, updated);
       productModal.closeModal();
+      setEditingScannedIndex(null);
       showToast(`Updated queue item: "${updated.name}"`, "success");
     } else if (productModal.editingProductId !== null) {
       // Update existing database product
@@ -266,6 +263,7 @@ export default function ManageStationPage() {
       };
       addItems([newItem]);
       productModal.closeModal();
+      setMobileTab("queue");
       showToast(`Added "${newItem.name}" to staging queue.`, "success");
     }
   };
@@ -294,6 +292,19 @@ export default function ManageStationPage() {
     setDeleteModalState((prev) => ({ ...prev, isOpen: false }));
   };
 
+  // Context passed to ProductModal when editing a scanned queue item
+  const editingScannedItem =
+    editingScannedIndex !== null ? scannedItems[editingScannedIndex] : null;
+
+  const scannedItemContext = useMemo(() => {
+    if (!editingScannedItem || editingScannedIndex === null) return null;
+    return {
+      isScannedItem: true,
+      matchedProductName: editingScannedItem.matched_product_name,
+      currentStock: editingScannedItem.current_stock,
+    };
+  }, [editingScannedItem, editingScannedIndex]);
+
   return (
     <>
       <AppHeader
@@ -303,12 +314,48 @@ export default function ManageStationPage() {
       />
 
       <main className="p-4 sm:p-8 flex-1 max-w-7xl">
+        {/* Mobile View Switcher (Queue vs Scanners) */}
+        <div className="lg:hidden flex p-1 bg-zinc-100 rounded-xl mb-4 border border-zinc-200/80">
+          <button
+            type="button"
+            onClick={() => setMobileTab("scanners")}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              mobileTab === "scanners"
+                ? "bg-white text-zinc-900 shadow-xs"
+                : "text-zinc-600 hover:text-zinc-900"
+            }`}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>Scanners</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("queue")}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              mobileTab === "queue"
+                ? "bg-white text-zinc-900 shadow-xs"
+                : "text-zinc-600 hover:text-zinc-900"
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>Staging Queue</span>
+            {scannedItems.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] py-0 px-1.5 ml-1">
+                {scannedItems.length}
+              </Badge>
+            )}
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left: Scanned Items Queue Table */}
-          <Card className="lg:col-span-7 flex flex-col h-[calc(100vh-8.5rem)] overflow-hidden shadow-2xs border-zinc-200">
+          <Card
+            className={`lg:col-span-7 flex flex-col h-[calc(100vh-12rem)] min-h-[480px] lg:h-[calc(100vh-8.5rem)] overflow-hidden shadow-2xs border-zinc-200 ${
+              mobileTab === "queue" ? "flex" : "hidden lg:flex"
+            }`}
+          >
             <ScannedQueueTable
               scannedItems={scannedItems}
-              filteredScannedItems={filteredScannedItems}
               tableSearch={tableSearch}
               setTableSearch={setTableSearch}
               batchImporting={batchImporting}
@@ -336,13 +383,18 @@ export default function ManageStationPage() {
               onUnlinkProduct={handleUnlinkProduct}
               onToggleUpdateMode={handleToggleUpdateMode}
               onConvertPack={handleConvertPack}
+              onSwitchToScanners={() => setMobileTab("scanners")}
             />
 
             <QueueSummaryBar scannedItems={scannedItems} />
           </Card>
 
           {/* Right: Scanners */}
-          <div className="lg:col-span-5 space-y-5">
+          <div
+            className={`lg:col-span-5 space-y-5 ${
+              mobileTab === "scanners" ? "block" : "hidden lg:block"
+            }`}
+          >
             <ReceiptScannerCard
               fileInputRef={receiptScanner.fileInputRef}
               onFileChange={receiptScanner.onFileChange}
@@ -360,7 +412,10 @@ export default function ManageStationPage() {
 
       <ProductModal
         isOpen={productModal.isOpen}
-        onOpenChange={productModal.setIsOpen}
+        onOpenChange={(open) => {
+          productModal.setIsOpen(open);
+          if (!open) setEditingScannedIndex(null);
+        }}
         modalMode={productModal.modalMode}
         formData={productModal.formData}
         setFormData={productModal.setFormData}
@@ -370,6 +425,7 @@ export default function ManageStationPage() {
         loading={productModal.loading}
         formError={productModal.formError}
         onConvertPackToPieces={productModal.handleConvertPackToPieces}
+        scannedItemContext={scannedItemContext}
       />
 
       <DeleteConfirmationModal

@@ -30,3 +30,7 @@ _Avoid_: Linking, picking stock, SKU mapping
 The transformation of a wholesale purchase unit (e.g. pack, box) into individual retail units (e.g. pc, sachet), dividing unit cost and multiplying stock quantity by pieces per pack.
 _Avoid_: Unit breakdown, unbundling, de-boxing
 
+**Restock Update Mode**:
+The operation type applied when committing a staged item matched to an existing catalog product: either incrementing existing stock by the restock quantity (`add`) or overwriting the inventory count (`replace`).
+_Avoid_: Override toggle, count mode, quantity mode
+
