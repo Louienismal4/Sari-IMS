@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useEffect } from "react";
+import { useId, useRef, useEffect, useState } from "react";
 import { Percent, Layers, AlertCircle, PackageCheck, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ export interface ScannedItemModalContext {
   isScannedItem: boolean;
   matchedProductName?: string | null;
   currentStock?: number | null;
+  initialUpdateMode?: "add" | "replace";
+  onSaveUpdateMode?: (mode: "add" | "replace") => void;
 }
 
 interface ProductModalProps {
@@ -63,20 +65,28 @@ export function ProductModal({
 
   const modalNameInputRef = useRef<HTMLInputElement>(null);
 
+  // Maintain local update mode inside modal to avoid polluting ProductFormData or mutating staging state before submit
+  const [localUpdateMode, setLocalUpdateMode] = useState<"add" | "replace">(
+    scannedItemContext?.initialUpdateMode || "add"
+  );
+
   useEffect(() => {
     if (isOpen) {
+      setLocalUpdateMode(scannedItemContext?.initialUpdateMode || "add");
       setTimeout(() => {
         modalNameInputRef.current?.focus();
       }, 50);
     }
-  }, [isOpen]);
+  }, [isOpen, scannedItemContext?.initialUpdateMode]);
 
   const handleCostPriceChange = (newCostStr: string) => {
     const cost = parseFloat(newCostStr);
     const existingRetail = parseFloat(formData.selling_price);
 
-    // If restock/scanned item context is active and retail shelf price already exists, preserve shelf price per ADR-0001
-    if (scannedItemContext && !isNaN(cost) && cost > 0 && !isNaN(existingRetail) && existingRetail > 0) {
+    // ADR-0001: Only preserve shelf selling price when restocking an existing matched catalog product!
+    const isRestockingMatchedProduct = !!(scannedItemContext && scannedItemContext.matchedProductName);
+
+    if (isRestockingMatchedProduct && !isNaN(cost) && cost > 0 && !isNaN(existingRetail) && existingRetail > 0) {
       const computedMarkup = (((existingRetail - cost) / cost) * 100).toFixed(1);
       setFormData((prev) => ({
         ...prev,
@@ -130,10 +140,15 @@ export function ProductModal({
   };
 
   const toggleModalUpdateMode = () => {
-    setFormData((prev) => ({
-      ...prev,
-      update_mode: prev.update_mode === "replace" ? "add" : "replace",
-    }));
+    setLocalUpdateMode((prev) => (prev === "replace" ? "add" : "replace"));
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (scannedItemContext?.onSaveUpdateMode) {
+      scannedItemContext.onSaveUpdateMode(localUpdateMode);
+    }
+    await onSubmit(e);
   };
 
   // Calculations
@@ -166,6 +181,7 @@ export function ProductModal({
     { id: "bundle", name: "bundle", label: "Bundle" },
   ];
 
+  // Shared Sub-renderers
   const renderPricingGrid = () => (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
       <div className="space-y-1">
@@ -234,6 +250,60 @@ export function ProductModal({
         </span>
         <span className="text-[10px] text-zinc-400 font-mono">({markupVal}% Margin)</span>
       </div>
+    </div>
+  );
+
+  const renderBarcodeAndCategory = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="space-y-1">
+        <label htmlFor={formBarcodeId} className="text-[11px] font-semibold text-zinc-700">
+          Barcode / SKU
+        </label>
+        <Input
+          id={formBarcodeId}
+          type="text"
+          placeholder="4800016644810"
+          value={formData.barcode}
+          onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+          className="font-mono text-xs h-8"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor={formCategoryId} className="text-[11px] font-semibold text-zinc-700">
+          Category
+        </label>
+        <select
+          id={formCategoryId}
+          value={formData.category_id}
+          onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+          className="flex h-8 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-900 shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950"
+        >
+          <option value="">Uncategorized</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
+  const renderReorderLevel = () => (
+    <div className="space-y-1">
+      <label htmlFor={formReorderLevelId} className="text-[11px] font-semibold text-zinc-700">
+        Reorder Alert Level
+      </label>
+      <Input
+        id={formReorderLevelId}
+        type="number"
+        min="0"
+        placeholder="5"
+        value={formData.reorder_level}
+        onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
+        className="font-mono text-xs h-8"
+      />
     </div>
   );
 
@@ -344,7 +414,7 @@ export function ProductModal({
                   onClick={toggleModalUpdateMode}
                   className="h-6 text-[10px] bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 shrink-0 font-medium"
                 >
-                  Mode: {formData.update_mode === "replace" ? "Replace Stock" : "Add (+)"}
+                  Mode: {localUpdateMode === "replace" ? "Replace Stock" : "Add (+)"}
                 </Button>
               )}
             </div>
@@ -354,7 +424,7 @@ export function ProductModal({
                   Current in store: <strong>{scannedItemContext.currentStock ?? 0} {formData.unit}</strong>
                 </span>
                 <span>
-                  {formData.update_mode === "replace"
+                  {localUpdateMode === "replace"
                     ? `New total: ${formData.stock_quantity || 0} ${formData.unit}`
                     : `New total: ${(scannedItemContext.currentStock ?? 0) + (parseInt(formData.stock_quantity, 10) || 0)} ${formData.unit}`}
                 </span>
@@ -363,7 +433,7 @@ export function ProductModal({
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="space-y-4 pt-1">
+        <form onSubmit={handleFormSubmit} className="space-y-4 pt-1">
           {scannedItemContext ? (
             <>
               {/* Product Name & Unit in a single row */}
@@ -409,11 +479,11 @@ export function ProductModal({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label htmlFor={formStockQuantityId} className="text-xs font-semibold text-zinc-700">
-                    Restock Quantity to {formData.update_mode === "replace" ? "Set" : "Add"} *
+                    Restock Quantity to {localUpdateMode === "replace" ? "Set" : "Add"} *
                   </label>
                   {scannedItemContext.matchedProductName && (
                     <span className="text-[11px] font-mono text-emerald-700">
-                      {formData.update_mode === "replace"
+                      {localUpdateMode === "replace"
                         ? `Sets total to: ${formData.stock_quantity || 0} ${formData.unit}`
                         : `${scannedItemContext.currentStock ?? 0} current + ${formData.stock_quantity || 0} = ${(scannedItemContext.currentStock ?? 0) + (parseInt(formData.stock_quantity, 10) || 0)} ${formData.unit}`}
                     </span>
@@ -455,55 +525,8 @@ export function ProductModal({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label htmlFor={formBarcodeId} className="text-[11px] font-semibold text-zinc-700">
-                        Barcode / SKU
-                      </label>
-                      <Input
-                        id={formBarcodeId}
-                        type="text"
-                        placeholder="4800016644810"
-                        value={formData.barcode}
-                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                        className="font-mono text-xs h-8"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label htmlFor={formCategoryId} className="text-[11px] font-semibold text-zinc-700">
-                        Category
-                      </label>
-                      <select
-                        id={formCategoryId}
-                        value={formData.category_id}
-                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                        className="flex h-8 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-900 shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950"
-                      >
-                        <option value="">Uncategorized</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor={formReorderLevelId} className="text-[11px] font-semibold text-zinc-700">
-                      Reorder Alert Level
-                    </label>
-                    <Input
-                      id={formReorderLevelId}
-                      type="number"
-                      min="0"
-                      placeholder="5"
-                      value={formData.reorder_level}
-                      onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
-                      className="font-mono text-xs h-8"
-                    />
-                  </div>
+                  {renderBarcodeAndCategory()}
+                  {renderReorderLevel()}
                 </div>
               </details>
             </>
@@ -540,42 +563,7 @@ export function ProductModal({
                 </div>
               )}
 
-              {/* Barcode & Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label htmlFor={formBarcodeId} className="text-xs font-semibold text-zinc-700">
-                    Barcode / SKU
-                  </label>
-                  <Input
-                    id={formBarcodeId}
-                    type="text"
-                    placeholder="Scan or type barcode"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="font-mono text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label htmlFor={formCategoryId} className="text-xs font-semibold text-zinc-700">
-                    Category
-                  </label>
-                  <select
-                    id={formCategoryId}
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="flex h-8 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-900 shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950"
-                  >
-                    <option value="">Uncategorized</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
+              {renderBarcodeAndCategory()}
               {renderPricingGrid()}
               {renderMarginPreviewBar()}
 
@@ -617,21 +605,7 @@ export function ProductModal({
               </div>
 
               {renderPackConversionSection()}
-
-              <div className="space-y-1">
-                <label htmlFor={formReorderLevelId} className="text-xs font-semibold text-zinc-700">
-                  Reorder Alert Level
-                </label>
-                <Input
-                  id={formReorderLevelId}
-                  type="number"
-                  min="0"
-                  placeholder="5"
-                  value={formData.reorder_level}
-                  onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
-                  className="font-mono text-xs"
-                />
-              </div>
+              {renderReorderLevel()}
             </>
           )}
 

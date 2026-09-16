@@ -16,7 +16,6 @@ const INITIAL_FORM_DATA: ProductFormData = {
   stock_quantity: "10",
   reorder_level: "5",
   pieces_per_pack: "12",
-  update_mode: "add",
 };
 
 export function useProductModal() {

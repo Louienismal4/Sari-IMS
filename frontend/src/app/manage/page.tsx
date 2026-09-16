@@ -181,9 +181,12 @@ export default function ManageStationPage() {
   // Barcode Scanner hook
   const barcodeScanner = useBarcodeScanner(handleBarcodeDetected);
 
+  const [modalPendingUpdateMode, setModalPendingUpdateMode] = useState<"add" | "replace">("add");
+
   // Open modal to edit a scanned item in queue
   const handleOpenEditScannedItem = (item: ScannedItem, index: number) => {
     setEditingScannedIndex(index);
+    setModalPendingUpdateMode(item.update_mode || "add");
     productModal.openEditModal({
       id: 0,
       name: item.name,
@@ -197,10 +200,6 @@ export default function ManageStationPage() {
       reorder_level: item.reorder_level,
       category: null,
     });
-    productModal.setFormData((prev) => ({
-      ...prev,
-      update_mode: item.update_mode || "add",
-    }));
   };
 
   const handleUpdateScannedItemField = (
@@ -234,7 +233,7 @@ export default function ManageStationPage() {
         selling_price: productModal.formData.selling_price,
         stock_quantity: parseInt(productModal.formData.stock_quantity, 10) || 1,
         reorder_level: parseInt(productModal.formData.reorder_level, 10) || 5,
-        update_mode: productModal.formData.update_mode || originalScanned.update_mode || "add",
+        update_mode: modalPendingUpdateMode,
       };
       updateItem(editingScannedIndex, updated);
       productModal.closeModal();
@@ -302,6 +301,10 @@ export default function ManageStationPage() {
       isScannedItem: true,
       matchedProductName: editingScannedItem.matched_product_name,
       currentStock: editingScannedItem.current_stock,
+      initialUpdateMode: editingScannedItem.update_mode || "add",
+      onSaveUpdateMode: (mode: "add" | "replace") => {
+        setModalPendingUpdateMode(mode);
+      },
     };
   }, [editingScannedItem, editingScannedIndex]);
 

@@ -53,7 +53,7 @@ interface ScannedQueueTableProps {
   onDeleteItem: (index: number) => void;
   onLinkProduct: (index: number, product: Product) => void;
   onUnlinkProduct: (index: number) => void;
-  onToggleUpdateMode: (index: number) => void;
+  onToggleUpdateMode?: (index: number) => void;
   onConvertPack: (index: number, piecesPerPack: number) => void;
   onSwitchToScanners?: () => void;
 }
@@ -96,7 +96,7 @@ function MatchStatusBadge({
             type="button"
             onClick={() => onUnlinkProduct(originalIndex)}
             className="ml-0.5 text-emerald-700/60 hover:text-rose-600 p-0.5 rounded transition-colors"
-            title="Unlink product (set as new)"
+            title="Unmatch product (mark as new)"
           >
             <X className="w-2.5 h-2.5" />
           </button>
@@ -131,7 +131,7 @@ function MatchStatusBadge({
           <span className="truncate max-w-[160px]">
             Match: <strong>{item.suggested_product_name}</strong>?
           </span>
-          <span className="underline font-bold text-[10px] ml-1">Link</span>
+          <span className="underline font-bold text-[10px] ml-1">Match</span>
         </button>
 
         <Button
@@ -167,6 +167,70 @@ function MatchStatusBadge({
   );
 }
 
+interface QueueRowDropdownProps {
+  item: ScannedItem;
+  originalIndex: number;
+  isLinked: boolean;
+  hasUnitMismatch: boolean;
+  onOpenPicker: (item: ScannedItem, index: number) => void;
+  onOpenPackModal: (item: ScannedItem, index: number) => void;
+  onOpenEditModal: (item: ScannedItem, index: number) => void;
+  onDeleteItem: (index: number) => void;
+}
+
+function QueueRowDropdown({
+  item,
+  originalIndex,
+  isLinked,
+  hasUnitMismatch,
+  onOpenPicker,
+  onOpenPackModal,
+  onOpenEditModal,
+  onDeleteItem,
+}: QueueRowDropdownProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 min-h-[44px] min-w-[44px] text-zinc-400 hover:text-zinc-700"
+          aria-label={`Open actions for ${item.name}`}
+        >
+          <MoreVertical className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => onOpenPicker(item, originalIndex)}>
+          <LinkIcon className="w-3.5 h-3.5 text-zinc-500 mr-2" />
+          <span>{isLinked ? "Change Matched Product" : "Match to Catalog Product"}</span>
+        </DropdownMenuItem>
+
+        {hasUnitMismatch && (
+          <DropdownMenuItem onClick={() => onOpenPackModal(item, originalIndex)}>
+            <Layers className="w-3.5 h-3.5 text-amber-600 mr-2" />
+            <span>Convert Pack to Pieces</span>
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuItem onClick={() => onOpenEditModal(item, originalIndex)}>
+          <Edit3 className="w-3.5 h-3.5 text-zinc-500 mr-2" />
+          <span>Edit Details (Cost, Retail, Qty)</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => onDeleteItem(originalIndex)}
+          className="text-rose-600 focus:text-rose-700 focus:bg-rose-50"
+        >
+          <Trash2 className="w-3.5 h-3.5 mr-2" />
+          <span>Remove</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function ScannedQueueTable({
   scannedItems,
   tableSearch,
@@ -180,7 +244,6 @@ export function ScannedQueueTable({
   onDeleteItem,
   onLinkProduct,
   onUnlinkProduct,
-  onToggleUpdateMode,
   onConvertPack,
   onSwitchToScanners,
 }: ScannedQueueTableProps) {
@@ -347,10 +410,11 @@ export function ScannedQueueTable({
                     const itemMargin = cost > 0 ? (((retail - cost) / cost) * 100).toFixed(0) : "0";
 
                     const isLinked = !!item.matched_product_id;
-                    const hasUnitMismatch =
+                    const hasUnitMismatch = Boolean(
                       isLinked &&
                       item.catalog_unit &&
-                      item.catalog_unit.toLowerCase() !== item.unit.toLowerCase();
+                      item.catalog_unit.toLowerCase() !== item.unit.toLowerCase()
+                    );
 
                     const isReplaceMode = item.update_mode === "replace";
                     const totalStockPreview = (item.current_stock ?? 0) + (item.stock_quantity || 0);
@@ -444,18 +508,16 @@ export function ScannedQueueTable({
                                 </div>
                               )}
 
-                              <button
-                                type="button"
-                                onClick={() => onToggleUpdateMode(originalIndex)}
-                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors inline-flex items-center gap-1 ${
+                              <span
+                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${
                                   isReplaceMode
-                                    ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
-                                    : "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
+                                    ? "bg-amber-50 text-amber-900 border-amber-300"
+                                    : "bg-emerald-50 text-emerald-900 border-emerald-300"
                                 }`}
-                                title="Click to toggle between Add and Replace mode"
+                                title="Restock Update Mode (editable in modal)"
                               >
                                 <span>{isReplaceMode ? "Mode: Replace" : "Mode: Add (+)"}</span>
-                              </button>
+                              </span>
                             </div>
                           ) : (
                             <span className="text-[10px] text-zinc-400 block font-mono mt-0.5">
@@ -466,56 +528,22 @@ export function ScannedQueueTable({
 
                         {/* Row Actions */}
                         <TableCell className="text-right align-top py-3">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 min-h-[44px] min-w-[44px] text-zinc-500 hover:text-zinc-800"
-                                aria-label={`Open actions for ${item.name}`}
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => setPickerTarget({ item, index: originalIndex })}
-                              >
-                                <LinkIcon className="w-3.5 h-3.5 text-zinc-500 mr-2" />
-                                <span>{isLinked ? "Change Matched Product" : "Match to Catalog Product"}</span>
-                              </DropdownMenuItem>
-
-                              {hasUnitMismatch && (
-                                <DropdownMenuItem
-                                  onClick={() => setPackTarget({ item, index: originalIndex })}
-                                >
-                                  <Layers className="w-3.5 h-3.5 text-amber-600 mr-2" />
-                                  <span>Convert Pack to Pieces</span>
-                                </DropdownMenuItem>
-                              )}
-
-                              <DropdownMenuItem onClick={() => onOpenItemModal(item, originalIndex)}>
-                                <Edit3 className="w-3.5 h-3.5 text-zinc-500 mr-2" />
-                                <span>Calculator &amp; Margin</span>
-                              </DropdownMenuItem>
-
-                              {isLinked && (
-                                <DropdownMenuItem onClick={() => onToggleUpdateMode(originalIndex)}>
-                                  <Check className="w-3.5 h-3.5 text-zinc-500 mr-2" />
-                                  <span>Switch to {isReplaceMode ? "Add Mode" : "Replace Mode"}</span>
-                                </DropdownMenuItem>
-                              )}
-
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => onDeleteItem(originalIndex)}
-                                className="text-rose-600 focus:text-rose-700 focus:bg-rose-50"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                <span>Remove</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <QueueRowDropdown
+                            item={item}
+                            originalIndex={originalIndex}
+                            isLinked={isLinked}
+                            hasUnitMismatch={hasUnitMismatch}
+                            onOpenPicker={(targetItem, targetIdx) =>
+                              setPickerTarget({ item: targetItem, index: targetIdx })
+                            }
+                            onOpenPackModal={(targetItem, targetIdx) =>
+                              setPackTarget({ item: targetItem, index: targetIdx })
+                            }
+                            onOpenEditModal={(targetItem, targetIdx) =>
+                              onOpenItemModal(targetItem, targetIdx)
+                            }
+                            onDeleteItem={onDeleteItem}
+                          />
                         </TableCell>
                       </TableRow>
                     );
@@ -528,11 +556,11 @@ export function ScannedQueueTable({
             <div className="md:hidden divide-y divide-zinc-100">
               {indexedScannedItems.map(({ item, originalIndex }) => {
                 const isLinked = !!item.matched_product_id;
-                const hasUnitMismatch =
+                const hasUnitMismatch = Boolean(
                   isLinked &&
                   item.catalog_unit &&
-                  item.catalog_unit.toLowerCase() !== item.unit.toLowerCase();
-                const isReplaceMode = item.update_mode === "replace";
+                  item.catalog_unit.toLowerCase() !== item.unit.toLowerCase()
+                );
                 const retail = parseFloat(item.selling_price) || 0;
 
                 return (
@@ -594,7 +622,7 @@ export function ScannedQueueTable({
                           </span>
                         )}
 
-                        {/* Glanceable Compact Pill (Retail · Quantity) */}
+                        {/* Glanceable Compact Pill: ₱{retail} · {qty} {unit} */}
                         <div className="flex items-center gap-1.5 mt-1.5">
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono bg-zinc-100/90 text-zinc-900 border border-zinc-200/80 shadow-2xs">
                             <span className="font-bold">₱{retail.toFixed(2)}</span>
@@ -602,11 +630,6 @@ export function ScannedQueueTable({
                             <span className="text-zinc-700 font-medium">
                               {item.stock_quantity} {item.unit}
                             </span>
-                            {isLinked && (
-                              <span className="text-emerald-700 font-semibold ml-0.5">
-                                {isReplaceMode ? "(Replace)" : `(+${item.stock_quantity})`}
-                              </span>
-                            )}
                           </span>
                         </div>
                       </div>
@@ -624,45 +647,22 @@ export function ScannedQueueTable({
                           <span>Edit</span>
                         </Button>
 
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-zinc-400 hover:text-zinc-700"
-                              aria-label={`Actions for ${item.name}`}
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => setPickerTarget({ item, index: originalIndex })}>
-                              <LinkIcon className="w-3.5 h-3.5 text-zinc-500 mr-2" />
-                              <span>{isLinked ? "Change Matched Product" : "Match to Catalog Product"}</span>
-                            </DropdownMenuItem>
-
-                            {hasUnitMismatch && (
-                              <DropdownMenuItem onClick={() => setPackTarget({ item, index: originalIndex })}>
-                                <Layers className="w-3.5 h-3.5 text-amber-600 mr-2" />
-                                <span>Convert Pack to Pieces</span>
-                              </DropdownMenuItem>
-                            )}
-
-                            <DropdownMenuItem onClick={() => onOpenItemModal(item, originalIndex)}>
-                              <Edit3 className="w-3.5 h-3.5 text-zinc-500 mr-2" />
-                              <span>Edit Details (Cost, Retail, Qty)</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => onDeleteItem(originalIndex)}
-                              className="text-rose-600 focus:text-rose-700 focus:bg-rose-50"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-2" />
-                              <span>Remove</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <QueueRowDropdown
+                          item={item}
+                          originalIndex={originalIndex}
+                          isLinked={isLinked}
+                          hasUnitMismatch={hasUnitMismatch}
+                          onOpenPicker={(targetItem, targetIdx) =>
+                            setPickerTarget({ item: targetItem, index: targetIdx })
+                          }
+                          onOpenPackModal={(targetItem, targetIdx) =>
+                            setPackTarget({ item: targetItem, index: targetIdx })
+                          }
+                          onOpenEditModal={(targetItem, targetIdx) =>
+                            onOpenItemModal(targetItem, targetIdx)
+                          }
+                          onDeleteItem={onDeleteItem}
+                        />
                       </div>
                     </div>
                   </div>

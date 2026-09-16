@@ -29,7 +29,6 @@ export interface ProductFormData {
   stock_quantity: string;
   reorder_level: string;
   pieces_per_pack: string;
-  update_mode?: "add" | "replace";
 }
 
 export type StockFilter = "all" | "in_stock" | "low_stock" | "out_of_stock";
