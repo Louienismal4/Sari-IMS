@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Services\BackupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class BackupController extends Controller
@@ -33,7 +34,7 @@ class BackupController extends Controller
 
             return response()->json($backup);
         } catch (Throwable $e) {
-            return $this->error('Failed to generate full instance backup: ' . $e->getMessage(), 500);
+            return $this->error('Failed to generate full instance backup: '.$e->getMessage(), 500);
         }
     }
 
@@ -53,19 +54,21 @@ class BackupController extends Controller
                 $backupData = json_decode($backupData, true);
             }
 
-            if (!is_array($backupData)) {
+            if (! is_array($backupData)) {
                 return $this->error('Invalid backup data format. Expected JSON object or array.', 422);
             }
 
-            $mode = $request->input('mode', 'full');
+            $mode = $request->input('mode') ?? 'full';
             $result = $this->backupService->restoreInstanceBackup($backupData, $mode);
 
             return $this->success(
                 $result,
                 "Instance restored successfully! ({$result['products_restored']} products, {$result['categories_restored']} categories, {$result['sales_restored']} sales restored)"
             );
+        } catch (ValidationException $e) {
+            return $this->error('Invalid backup: '.$e->getMessage(), 422, $e->errors());
         } catch (Throwable $e) {
-            return $this->error('Failed to restore instance backup: ' . $e->getMessage(), 500);
+            return $this->error('Failed to restore instance backup: '.$e->getMessage(), 500);
         }
     }
 }

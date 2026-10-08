@@ -10,7 +10,8 @@ use App\Models\StockAudit;
 use App\Models\StockAuditItem;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class BackupService
 {
@@ -19,118 +20,264 @@ class BackupService
      */
     public function exportInstanceBackup(?array $storeSettings = null): array
     {
-        $categories = Category::all()->map(function ($cat) {
+        if (DB::getDriverName() === 'pgsql' && DB::transactionLevel() !== 0) {
+            throw new \LogicException('Backup export requires its own PostgreSQL transaction.');
+        }
+
+        return DB::transaction(function () use ($storeSettings) {
+            if (DB::getDriverName() === 'pgsql') {
+                // PostgreSQL's default isolation takes a new snapshot for each query.
+                DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
+            }
+
+            $categories = Category::all()->map(function ($cat) {
+                return [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'created_at' => $cat->created_at?->toIso8601String(),
+                ];
+            });
+
+            $products = Product::with('category')->get()->map(function ($prod) {
+                return [
+                    'id' => $prod->id,
+                    'category_id' => $prod->category_id,
+                    'category_name' => $prod->category?->name,
+                    'barcode' => $prod->barcode,
+                    'name' => $prod->name,
+                    'original_name' => $prod->original_name,
+                    'unit' => $prod->unit,
+                    'cost_price' => (string) $prod->cost_price,
+                    'selling_price' => (string) $prod->selling_price,
+                    'stock_quantity' => $prod->stock_quantity,
+                    'reorder_level' => $prod->reorder_level,
+                    'is_active' => (bool) $prod->is_active,
+                    'created_at' => $prod->created_at?->toIso8601String(),
+                ];
+            });
+
+            $sales = Sale::with('items')->get()->map(function ($sale) {
+                return [
+                    'id' => $sale->id,
+                    'invoice_number' => $sale->invoice_number,
+                    'customer_name' => $sale->customer_name,
+                    'customer_phone' => $sale->customer_phone,
+                    'payment_type' => $sale->payment_type,
+                    'payment_status' => $sale->payment_status,
+                    'total_amount' => (string) $sale->total_amount,
+                    'amount_tendered' => (string) $sale->amount_tendered,
+                    'change_amount' => (string) $sale->change_amount,
+                    'notes' => $sale->notes,
+                    'settled_at' => $sale->settled_at?->toIso8601String(),
+                    'created_at' => $sale->created_at?->toIso8601String(),
+                    'items' => $sale->items->map(function ($item) {
+                        return [
+                            'product_id' => $item->product_id,
+                            'product_name' => $item->product_name,
+                            'unit' => $item->unit,
+                            'unit_price' => (string) $item->unit_price,
+                            'cost_price' => (string) $item->cost_price,
+                            'quantity' => $item->quantity,
+                            'subtotal' => (string) $item->subtotal,
+                        ];
+                    }),
+                ];
+            });
+
+            $stockAudits = StockAudit::with('items')->get()->map(function ($audit) {
+                return [
+                    'id' => $audit->id,
+                    'audit_code' => $audit->audit_code,
+                    'status' => $audit->status,
+                    'started_at' => $audit->started_at?->toIso8601String(),
+                    'completed_at' => $audit->completed_at?->toIso8601String(),
+                    'total_items_audited' => $audit->total_items_audited,
+                    'total_units_sold' => $audit->total_units_sold,
+                    'total_expected_revenue' => (string) $audit->total_expected_revenue,
+                    'total_gross_profit' => (string) $audit->total_gross_profit,
+                    'notes' => $audit->notes,
+                    'items' => $audit->items->map(function ($item) {
+                        return [
+                            'product_id' => $item->product_id,
+                            'starting_stock' => $item->starting_stock,
+                            'restocked_quantity' => $item->restocked_quantity,
+                            'physical_count' => $item->physical_count,
+                            'units_sold' => $item->units_sold,
+                            'unit_cost' => (string) $item->unit_cost,
+                            'unit_price' => (string) $item->unit_price,
+                            'subtotal_revenue' => (string) $item->subtotal_revenue,
+                            'subtotal_profit' => (string) $item->subtotal_profit,
+                            'discrepancy_notes' => $item->discrepancy_notes,
+                        ];
+                    }),
+                ];
+            });
+
+            $stockMovements = StockMovement::all()->map(function ($m) {
+                return [
+                    'product_id' => $m->product_id,
+                    'type' => $m->type,
+                    'quantity_change' => $m->quantity_change,
+                    'notes' => $m->notes,
+                    'created_at' => $m->created_at?->toIso8601String(),
+                ];
+            });
+
             return [
-                'id' => $cat->id,
-                'name' => $cat->name,
-                'created_at' => $cat->created_at?->toIso8601String(),
+                'format' => 'sari_full_instance_backup',
+                'version' => '1.0',
+                'exported_at' => now()->toIso8601String(),
+                'generator' => 'Sari-IMS Instance Backup Engine',
+                'store_settings' => $storeSettings,
+                'summary' => [
+                    'categories_count' => $categories->count(),
+                    'products_count' => $products->count(),
+                    'sales_count' => $sales->count(),
+                    'audits_count' => $stockAudits->count(),
+                    'movements_count' => $stockMovements->count(),
+                ],
+                'categories' => $categories,
+                'products' => $products,
+                'sales' => $sales,
+                'stock_movements' => $stockMovements,
+                'stock_audits' => $stockAudits,
             ];
         });
+    }
 
-        $products = Product::with('category')->get()->map(function ($prod) {
-            return [
-                'id' => $prod->id,
-                'category_id' => $prod->category_id,
-                'category_name' => $prod->category?->name,
-                'barcode' => $prod->barcode,
-                'name' => $prod->name,
-                'original_name' => $prod->original_name,
-                'unit' => $prod->unit,
-                'cost_price' => (string) $prod->cost_price,
-                'selling_price' => (string) $prod->selling_price,
-                'stock_quantity' => $prod->stock_quantity,
-                'reorder_level' => $prod->reorder_level,
-                'is_active' => (bool) $prod->is_active,
-                'created_at' => $prod->created_at?->toIso8601String(),
+    private function validateBackup(array $backup): void
+    {
+        $legacy = array_is_list($backup);
+        $data = $legacy ? ['products' => $backup] : $backup;
+        $rules = ['products' => 'present|array|list'];
+
+        if ($legacy) {
+            $rules['products'] = 'required|array|list|min:1';
+        } else {
+            $rules += [
+                'format' => 'required|in:sari_full_instance_backup',
+                'version' => 'required|string|in:1.0',
+                'store_settings' => 'sometimes|nullable|array',
             ];
-        });
+            foreach (['categories', 'sales', 'stock_movements', 'stock_audits'] as $section) {
+                $rules[$section] = 'present|array|list';
+                $rules[$section.'.*'] = 'required|array';
+            }
+        }
 
-        $sales = Sale::with('items')->get()->map(function ($sale) {
-            return [
-                'id' => $sale->id,
-                'invoice_number' => $sale->invoice_number,
-                'customer_name' => $sale->customer_name,
-                'customer_phone' => $sale->customer_phone,
-                'payment_type' => $sale->payment_type,
-                'payment_status' => $sale->payment_status,
-                'total_amount' => (string) $sale->total_amount,
-                'amount_tendered' => (string) $sale->amount_tendered,
-                'change_amount' => (string) $sale->change_amount,
-                'notes' => $sale->notes,
-                'settled_at' => $sale->settled_at?->toIso8601String(),
-                'created_at' => $sale->created_at?->toIso8601String(),
-                'items' => $sale->items->map(function ($item) {
-                    return [
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product_name,
-                        'unit' => $item->unit,
-                        'unit_price' => (string) $item->unit_price,
-                        'cost_price' => (string) $item->cost_price,
-                        'quantity' => $item->quantity,
-                        'subtotal' => (string) $item->subtotal,
-                    ];
-                }),
-            ];
-        });
+        $rules['products.*'] = 'required|array';
+        // Validate container shapes before reading IDs or expanding nested record rules.
+        Validator::make($data, $rules)->validate();
 
-        $stockAudits = StockAudit::with('items')->get()->map(function ($audit) {
-            return [
-                'id' => $audit->id,
-                'audit_code' => $audit->audit_code,
-                'status' => $audit->status,
-                'started_at' => $audit->started_at?->toIso8601String(),
-                'completed_at' => $audit->completed_at?->toIso8601String(),
-                'total_items_audited' => $audit->total_items_audited,
-                'total_units_sold' => $audit->total_units_sold,
-                'total_expected_revenue' => (string) $audit->total_expected_revenue,
-                'total_gross_profit' => (string) $audit->total_gross_profit,
-                'notes' => $audit->notes,
-                'items' => $audit->items->map(function ($item) {
-                    return [
-                        'product_id' => $item->product_id,
-                        'starting_stock' => $item->starting_stock,
-                        'restocked_quantity' => $item->restocked_quantity,
-                        'physical_count' => $item->physical_count,
-                        'units_sold' => $item->units_sold,
-                        'unit_cost' => (string) $item->unit_cost,
-                        'unit_price' => (string) $item->unit_price,
-                        'subtotal_revenue' => (string) $item->subtotal_revenue,
-                        'subtotal_profit' => (string) $item->subtotal_profit,
-                        'discrepancy_notes' => $item->discrepancy_notes,
-                    ];
-                }),
-            ];
-        });
+        // Check identities in the same form used by the restore lookups.
+        foreach ($data['categories'] ?? [] as $index => $category) {
+            if (isset($category['name']) && is_string($category['name'])) {
+                $data['categories'][$index]['name'] = trim($category['name']);
+            }
+        }
+        foreach ($data['products'] as $index => $product) {
+            if (isset($product['barcode']) && is_string($product['barcode'])) {
+                $barcode = trim($product['barcode']);
+                $data['products'][$index]['barcode'] = $barcode === '' ? null : $barcode;
+            }
+            if (isset($product['category_name']) && is_string($product['category_name'])) {
+                $data['products'][$index]['category_name'] = trim($product['category_name']);
+            }
+            if (isset($product['category']['name']) && is_string($product['category']['name'])) {
+                $data['products'][$index]['category']['name'] = trim($product['category']['name']);
+            }
+        }
 
-        $stockMovements = StockMovement::all()->map(function ($m) {
-            return [
-                'product_id' => $m->product_id,
-                'type' => $m->type,
-                'quantity_change' => $m->quantity_change,
-                'notes' => $m->notes,
-                'created_at' => $m->created_at?->toIso8601String(),
-            ];
-        });
-
-        return [
-            'format' => 'sari_full_instance_backup',
-            'version' => '1.0',
-            'exported_at' => now()->toIso8601String(),
-            'generator' => 'Sari-IMS Instance Backup Engine',
-            'store_settings' => $storeSettings,
-            'summary' => [
-                'categories_count' => $categories->count(),
-                'products_count' => $products->count(),
-                'sales_count' => $sales->count(),
-                'audits_count' => $stockAudits->count(),
-                'movements_count' => $stockMovements->count(),
-            ],
-            'categories' => $categories,
-            'products' => $products,
-            'sales' => $sales,
-            'stock_movements' => $stockMovements,
-            'stock_audits' => $stockAudits,
+        $name = ['required', 'string', 'max:255', 'regex:/\S/u'];
+        $money = 'required|numeric|between:0,99999999.99';
+        $integer = 'required|integer|between:-2147483648,2147483647';
+        $optionalId = 'sometimes|nullable|integer|min:1|distinct';
+        $rules += [
+            'categories.*.id' => 'required|integer|min:1|distinct',
+            'categories.*.name' => [...$name, 'distinct:ignore_case'],
+            'products.*.id' => $legacy ? $optionalId : 'required|integer|min:1|distinct',
+            'products.*.name' => $name,
+            'products.*.barcode' => 'sometimes|nullable|string|max:255|distinct',
+            'products.*.original_name' => 'sometimes|nullable|string|max:255',
+            'products.*.unit' => $legacy ? ['sometimes', ...$name] : $name,
+            'products.*.cost_price' => $money,
+            'products.*.selling_price' => $money,
+            'products.*.stock_quantity' => $integer,
+            'products.*.reorder_level' => 'sometimes|integer|between:0,2147483647',
+            'products.*.is_active' => 'sometimes|boolean',
+            'products.*.category_name' => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/\S/u'],
+            'products.*.category' => 'sometimes|nullable|array',
+            'products.*.category.name' => ['sometimes', ...$name],
+            'sales.*.invoice_number' => [...$name, 'distinct'],
+            'sales.*.payment_type' => 'required|in:cash,credit',
+            'sales.*.payment_status' => 'required|in:paid,unpaid',
+            'sales.*.total_amount' => $money,
+            'sales.*.amount_tendered' => 'sometimes|'.$money,
+            'sales.*.change_amount' => 'sometimes|'.$money,
+            'sales.*.items' => 'present|array|list',
+            'sales.*.items.*' => 'required|array',
+            'sales.*.items.*.product_name' => $name,
+            'sales.*.items.*.unit' => $name,
+            'sales.*.items.*.unit_price' => $money,
+            'sales.*.items.*.cost_price' => $money,
+            'sales.*.items.*.quantity' => 'required|integer|between:1,2147483647',
+            'sales.*.items.*.subtotal' => $money,
+            'stock_movements.*.type' => 'required|in:restock,damage,expired,adjustment,sale,audit_reconcile',
+            'stock_movements.*.quantity_change' => $integer,
+            'stock_audits.*.audit_code' => [...$name, 'distinct'],
+            'stock_audits.*.status' => 'required|in:in_progress,completed',
+            'stock_audits.*.started_at' => 'required|date',
+            'stock_audits.*.completed_at' => 'sometimes|nullable|date',
+            'stock_audits.*.items' => 'present|array|list',
+            'stock_audits.*.items.*' => 'required|array',
         ];
+        foreach (['total_items_audited', 'total_units_sold'] as $field) {
+            $rules['stock_audits.*.'.$field] = $integer;
+        }
+        foreach (['total_expected_revenue', 'total_gross_profit'] as $field) {
+            $rules['stock_audits.*.'.$field] = 'required|numeric|between:-9999999999.99,9999999999.99';
+        }
+        foreach (['starting_stock', 'restocked_quantity', 'physical_count', 'units_sold'] as $field) {
+            $rules['stock_audits.*.items.*.'.$field] = $integer;
+        }
+        foreach (['unit_cost', 'unit_price', 'subtotal_revenue', 'subtotal_profit'] as $field) {
+            $rules['stock_audits.*.items.*.'.$field] = 'required|numeric|between:-99999999.99,99999999.99';
+        }
+        foreach (['sales.*.customer_name', 'sales.*.customer_phone', 'stock_movements.*.notes',
+            'stock_audits.*.items.*.discrepancy_notes'] as $field) {
+            $rules[$field] = 'sometimes|nullable|string|max:255';
+        }
+        foreach (['sales.*.notes', 'stock_audits.*.notes'] as $field) {
+            $rules[$field] = 'sometimes|nullable|string';
+        }
+        foreach (['sales.*.settled_at', 'stock_movements.*.created_at'] as $field) {
+            $rules[$field] = 'sometimes|nullable|date';
+        }
+
+        Validator::make($data, $rules)->validate();
+
+        if (! $legacy) {
+            $categoryIds = array_column($data['categories'], 'id');
+            $productIds = array_column($data['products'], 'id');
+            $references = [
+                'products.*.category_id' => ['present', 'nullable', 'integer', Rule::in($categoryIds)],
+                'sales.*.items.*.product_id' => ['present', 'nullable', 'integer', Rule::in($productIds)],
+                'stock_movements.*.product_id' => ['required', 'integer', Rule::in($productIds)],
+                'stock_audits.*.items.*.product_id' => ['required', 'integer', Rule::in($productIds)],
+                'products.*.category_name' => ['nullable', Rule::in(array_column($data['categories'], 'name'))],
+                'products.*.category.name' => ['nullable', Rule::in(array_column($data['categories'], 'name'))],
+            ];
+            Validator::make($data, $references)->validate();
+            $categoryNames = array_column($data['categories'], 'name', 'id');
+            $consistentNames = [];
+            foreach ($data['products'] as $index => $product) {
+                $categoryName = $categoryNames[$product['category_id'] ?? ''] ?? null;
+                foreach (['category_name', 'category.name'] as $field) {
+                    $consistentNames['products.'.$index.'.'.$field] = ['nullable', Rule::in([$categoryName])];
+                }
+            }
+            Validator::make($data, $consistentNames)->validate();
+        }
     }
 
     /**
@@ -138,12 +285,13 @@ class BackupService
      */
     public function restoreInstanceBackup(array $backupData, string $mode = 'full'): array
     {
+        $this->validateBackup($backupData);
+
         return DB::transaction(function () use ($backupData, $mode) {
-            Schema::disableForeignKeyConstraints();
 
             // Detect if legacy array or full instance
             $isLegacyArray = array_is_list($backupData) && count($backupData) > 0 && isset($backupData[0]['name']);
-            
+
             $categoriesData = [];
             $productsData = [];
             $salesData = [];
@@ -157,7 +305,7 @@ class BackupService
                 $catNames = [];
                 foreach ($productsData as $p) {
                     $catName = $p['category']['name'] ?? $p['category_name'] ?? null;
-                    if ($catName && !in_array($catName, $catNames)) {
+                    if ($catName !== null && $catName !== '' && ! in_array($catName, $catNames)) {
                         $catNames[] = $catName;
                     }
                 }
@@ -174,13 +322,13 @@ class BackupService
             }
 
             if ($mode === 'full') {
-                StockAuditItem::truncate();
-                StockAudit::truncate();
-                SaleItem::truncate();
-                Sale::truncate();
-                StockMovement::truncate();
-                Product::truncate();
-                Category::truncate();
+                StockAuditItem::query()->delete();
+                StockAudit::query()->delete();
+                SaleItem::query()->delete();
+                Sale::query()->delete();
+                StockMovement::query()->delete();
+                Product::query()->delete();
+                Category::query()->delete();
             }
 
             // 1. Restore categories
@@ -189,7 +337,9 @@ class BackupService
 
             foreach ($categoriesData as $catItem) {
                 $name = trim($catItem['name'] ?? '');
-                if (!$name) continue;
+                if ($name === '') {
+                    continue;
+                }
 
                 $cat = Category::firstOrCreate(['name' => $name]);
                 $categoryNameMap[strtolower($name)] = $cat->id;
@@ -204,21 +354,24 @@ class BackupService
 
             foreach ($productsData as $prodItem) {
                 $name = trim($prodItem['name'] ?? '');
-                if (!$name) continue;
+                if ($name === '') {
+                    continue;
+                }
 
                 $targetCatId = null;
-                if (!empty($prodItem['category_id']) && isset($categoryIdMap[$prodItem['category_id']])) {
+                if (! empty($prodItem['category_id']) && isset($categoryIdMap[$prodItem['category_id']])) {
                     $targetCatId = $categoryIdMap[$prodItem['category_id']];
-                } elseif (!empty($prodItem['category_name']) && isset($categoryNameMap[strtolower(trim($prodItem['category_name']))])) {
+                } elseif (isset($prodItem['category_name']) && isset($categoryNameMap[strtolower(trim($prodItem['category_name']))])) {
                     $targetCatId = $categoryNameMap[strtolower(trim($prodItem['category_name']))];
-                } elseif (!empty($prodItem['category']['name']) && isset($categoryNameMap[strtolower(trim($prodItem['category']['name']))])) {
+                } elseif (isset($prodItem['category']['name']) && isset($categoryNameMap[strtolower(trim($prodItem['category']['name']))])) {
                     $targetCatId = $categoryNameMap[strtolower(trim($prodItem['category']['name']))];
                 }
 
-                $barcode = !empty($prodItem['barcode']) ? trim($prodItem['barcode']) : null;
+                $barcode = isset($prodItem['barcode']) ? trim($prodItem['barcode']) : '';
+                $barcode = $barcode === '' ? null : $barcode;
 
                 $product = null;
-                if ($barcode) {
+                if ($barcode !== null && $barcode !== '') {
                     $product = Product::where('barcode', $barcode)->first();
                 }
 
@@ -250,8 +403,8 @@ class BackupService
             // 3. Restore sales & items
             $restoredSalesCount = 0;
             foreach ($salesData as $saleItem) {
-                $invoiceNumber = $saleItem['invoice_number'] ?? ('INV-' . uniqid());
-                
+                $invoiceNumber = $saleItem['invoice_number'] ?? ('INV-'.uniqid());
+
                 $sale = Sale::firstOrCreate(
                     ['invoice_number' => $invoiceNumber],
                     [
@@ -267,10 +420,10 @@ class BackupService
                     ]
                 );
 
-                if (!empty($saleItem['items'])) {
+                if (! empty($saleItem['items'])) {
                     foreach ($saleItem['items'] as $item) {
                         $pId = null;
-                        if (!empty($item['product_id']) && isset($productIdMap[$item['product_id']])) {
+                        if (! empty($item['product_id']) && isset($productIdMap[$item['product_id']])) {
                             $pId = $productIdMap[$item['product_id']];
                         }
 
@@ -292,7 +445,7 @@ class BackupService
             // 4. Restore audits & items
             $restoredAuditsCount = 0;
             foreach ($auditsData as $auditItem) {
-                $auditCode = $auditItem['audit_code'] ?? ('AUDIT-' . uniqid());
+                $auditCode = $auditItem['audit_code'] ?? ('AUDIT-'.uniqid());
                 $audit = StockAudit::firstOrCreate(
                     ['audit_code' => $auditCode],
                     [
@@ -307,13 +460,15 @@ class BackupService
                     ]
                 );
 
-                if (!empty($auditItem['items'])) {
+                if (! empty($auditItem['items'])) {
                     foreach ($auditItem['items'] as $item) {
                         $pId = null;
-                        if (!empty($item['product_id']) && isset($productIdMap[$item['product_id']])) {
+                        if (! empty($item['product_id']) && isset($productIdMap[$item['product_id']])) {
                             $pId = $productIdMap[$item['product_id']];
                         }
-                        if (!$pId) continue;
+                        if (! $pId) {
+                            continue;
+                        }
 
                         StockAuditItem::create([
                             'stock_audit_id' => $audit->id,
@@ -336,7 +491,7 @@ class BackupService
             // 5. Restore stock movements
             foreach ($movementsData as $mov) {
                 $pId = null;
-                if (!empty($mov['product_id']) && isset($productIdMap[$mov['product_id']])) {
+                if (! empty($mov['product_id']) && isset($productIdMap[$mov['product_id']])) {
                     $pId = $productIdMap[$mov['product_id']];
                 }
                 if ($pId) {
@@ -350,10 +505,8 @@ class BackupService
                 }
             }
 
-            Schema::enableForeignKeyConstraints();
-
             return [
-                'categories_restored' => count($categoryIdMap),
+                'categories_restored' => count($categoryNameMap),
                 'products_restored' => $restoredProductsCount,
                 'sales_restored' => $restoredSalesCount,
                 'audits_restored' => $restoredAuditsCount,

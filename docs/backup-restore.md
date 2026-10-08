@@ -67,3 +67,19 @@ To migrate Sari-IMS to a completely new server:
 
 > [!IMPORTANT]
 > The `APP_KEY` in `deploy/.env` MUST match the original server. If the `APP_KEY` is lost or changed, encrypted secrets in `integration_credentials` cannot be decrypted.
+
+## 4. JSON Instance Restore
+
+The settings restore API accepts full JSON backups with `format: sari_full_instance_backup`,
+`version: "1.0"`, and all five list sections: `categories`, `products`, `sales`,
+`stock_movements`, and `stock_audits`. Records and references are validated before
+any current data is changed. Unsupported or invalid input returns HTTP 422.
+
+A full backup with all five sections explicitly empty is valid and clears current
+store records in full restore mode. An empty legacy product array is rejected;
+nonempty legacy product arrays with valid names, prices, and stock quantities are
+still supported, including nested `category.name` or `category_name`. Summary
+counts are informational and are not used to decide what to restore.
+
+Full restores delete and rebuild store records in one transaction with foreign
+keys enabled. A failure during restore rolls back both deletes and inserts.
