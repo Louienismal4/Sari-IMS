@@ -285,4 +285,3 @@ class InventoryApiTest extends TestCase
         ]);
     }
 }
-

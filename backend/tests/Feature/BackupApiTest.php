@@ -9,6 +9,7 @@ use App\Models\SaleItem;
 use App\Models\StockAudit;
 use App\Models\StockAuditItem;
 use App\Models\StockMovement;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class BackupApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->actingAs(\App\Models\User::factory()->create(), 'sanctum');
+        $this->actingAs(User::factory()->create(), 'sanctum');
     }
 
     public function test_can_export_full_instance_backup(): void
