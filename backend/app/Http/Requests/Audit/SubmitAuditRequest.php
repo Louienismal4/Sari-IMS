@@ -20,7 +20,9 @@ class SubmitAuditRequest extends FormRequest
         return [
             'notes' => 'nullable|string|max:500',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'required|distinct|exists:products,id',
+            'items.*.original_stock' => 'required|integer|min:0',
+            'items.*.stock_revision' => 'required|uuid',
             'items.*.physical_count' => 'required|integer|min:0',
             'items.*.discrepancy_notes' => 'nullable|string|max:255',
         ];

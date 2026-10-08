@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
@@ -31,6 +32,16 @@ class Product extends Model
         'reorder_level' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        // ponytail: bulk SQL stock updates bypass revisions; add a database trigger before introducing them.
+        static::saving(function (Product $product) {
+            if ($product->isDirty('stock_quantity')) {
+                $product->stock_revision = (string) Str::uuid();
+            }
+        });
+    }
 
     public function category(): BelongsTo
     {

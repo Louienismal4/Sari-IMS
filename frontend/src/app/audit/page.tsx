@@ -115,6 +115,8 @@ export default function WeeklyStockAuditPage() {
     try {
       const payloadItems = sheetData.items.map((it) => ({
         product_id: it.product_id,
+        original_stock: it.current_stock,
+        stock_revision: it.stock_revision,
         physical_count: counts[it.product_id] ?? it.suggested_physical_count,
         discrepancy_notes: discrepancies[it.product_id] || undefined,
       }));

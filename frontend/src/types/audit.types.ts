@@ -12,6 +12,7 @@ export interface AuditSheetItem {
   restocked_quantity: number;
   expected_stock: number;
   current_stock: number;
+  stock_revision: string;
   suggested_physical_count: number;
 }
 
@@ -61,6 +62,8 @@ export interface SubmitAuditPayload {
   notes?: string;
   items: {
     product_id: number;
+    original_stock: number;
+    stock_revision: string;
     physical_count: number;
     discrepancy_notes?: string;
   }[];

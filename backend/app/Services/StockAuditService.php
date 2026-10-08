@@ -72,6 +72,7 @@ class StockAuditService
                 'restocked_quantity' => $restockedQuantity,
                 'expected_stock' => $expectedStock,
                 'current_stock' => (int) $product->stock_quantity,
+                'stock_revision' => $product->stock_revision,
                 'suggested_physical_count' => (int) $product->stock_quantity,
             ];
         }
@@ -114,6 +115,12 @@ class StockAuditService
                 $discrepancyNotes = $entry['discrepancy_notes'] ?? null;
 
                 $product = Product::lockForUpdate()->findOrFail($productId);
+                if ($product->stock_quantity !== (int) $entry['original_stock']
+                    || $product->stock_revision !== $entry['stock_revision']) {
+                    throw new InvalidArgumentException(
+                        "Stock changed for '{$product->name}'. Refresh the audit sheet and recount this product before submitting."
+                    );
+                }
 
                 // Determine starting stock
                 $lastAuditItem = null;
