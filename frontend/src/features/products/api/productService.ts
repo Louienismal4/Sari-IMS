@@ -22,7 +22,7 @@ export async function createProduct(payload: Partial<Product>): Promise<Product>
   });
 }
 
-export async function updateProduct(id: number, payload: Partial<Product>): Promise<Product> {
+export async function updateProduct(id: number, payload: Partial<Product> & { original_stock_quantity: number }): Promise<Product> {
   return apiClient<Product>(`/products/${id}`, {
     method: "PUT",
     body: payload,

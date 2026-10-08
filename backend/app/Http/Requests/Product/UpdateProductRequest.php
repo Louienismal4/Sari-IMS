@@ -32,6 +32,7 @@ class UpdateProductRequest extends FormRequest
             'cost_price' => 'sometimes|required|numeric|min:0',
             'selling_price' => 'sometimes|required|numeric|min:0',
             'stock_quantity' => 'sometimes|required|integer|min:0',
+            'original_stock_quantity' => 'required_with:stock_quantity|integer|min:0',
             'reorder_level' => 'nullable|integer|min:0',
             'is_active' => 'sometimes|boolean',
         ];

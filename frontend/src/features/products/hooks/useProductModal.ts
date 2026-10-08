@@ -22,6 +22,7 @@ export function useProductModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [originalStockQuantity, setOriginalStockQuantity] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProductFormData>(INITIAL_FORM_DATA);
@@ -44,6 +45,7 @@ export function useProductModal() {
 
     setModalMode("edit");
     setEditingProductId(prod.id);
+    setOriginalStockQuantity(prod.stock_quantity);
     setFormError(null);
     setFormData({
       name: prod.name,
@@ -106,7 +108,10 @@ export function useProductModal() {
         if (modalMode === "create") {
           saved = await createProduct(payload);
         } else if (editingProductId) {
-          saved = await updateProduct(editingProductId, payload);
+          saved = await updateProduct(editingProductId, {
+            ...payload,
+            original_stock_quantity: originalStockQuantity,
+          });
         } else {
           throw new Error("No product ID provided for edit mode");
         }
@@ -122,7 +127,7 @@ export function useProductModal() {
         setLoading(false);
       }
     },
-    [formData, modalMode, editingProductId]
+    [formData, modalMode, editingProductId, originalStockQuantity]
   );
 
   return {

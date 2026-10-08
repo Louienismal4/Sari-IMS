@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductService
 {
@@ -144,8 +145,24 @@ class ProductService
      */
     public function updateProduct(Product $product, array $data): Product
     {
-        $product->update($data);
-        return $product->load('category');
+        return DB::transaction(function () use ($product, $data) {
+            $product = Product::lockForUpdate()->findOrFail($product->id);
+
+            if (array_key_exists('stock_quantity', $data)) {
+                $originalStock = (int) $data['original_stock_quantity'];
+                if ((int) $data['stock_quantity'] === $originalStock) {
+                    unset($data['stock_quantity']);
+                } elseif ($product->stock_quantity !== $originalStock) {
+                    throw ValidationException::withMessages([
+                        'stock_quantity' => 'Stock changed while this form was open. Refresh the catalog and reopen the product before correcting stock.',
+                    ]);
+                }
+            }
+
+            unset($data['original_stock_quantity']);
+            $product->update($data);
+            return $product->load('category');
+        });
     }
 
     /**
