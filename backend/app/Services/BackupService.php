@@ -20,118 +20,129 @@ class BackupService
      */
     public function exportInstanceBackup(?array $storeSettings = null): array
     {
-        $categories = Category::all()->map(function ($cat) {
+        if (DB::getDriverName() === 'pgsql' && DB::transactionLevel() !== 0) {
+            throw new \LogicException('Backup export requires its own PostgreSQL transaction.');
+        }
+
+        return DB::transaction(function () use ($storeSettings) {
+            if (DB::getDriverName() === 'pgsql') {
+                // PostgreSQL's default isolation takes a new snapshot for each query.
+                DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
+            }
+
+            $categories = Category::all()->map(function ($cat) {
+                return [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'created_at' => $cat->created_at?->toIso8601String(),
+                ];
+            });
+
+            $products = Product::with('category')->get()->map(function ($prod) {
+                return [
+                    'id' => $prod->id,
+                    'category_id' => $prod->category_id,
+                    'category_name' => $prod->category?->name,
+                    'barcode' => $prod->barcode,
+                    'name' => $prod->name,
+                    'original_name' => $prod->original_name,
+                    'unit' => $prod->unit,
+                    'cost_price' => (string) $prod->cost_price,
+                    'selling_price' => (string) $prod->selling_price,
+                    'stock_quantity' => $prod->stock_quantity,
+                    'reorder_level' => $prod->reorder_level,
+                    'is_active' => (bool) $prod->is_active,
+                    'created_at' => $prod->created_at?->toIso8601String(),
+                ];
+            });
+
+            $sales = Sale::with('items')->get()->map(function ($sale) {
+                return [
+                    'id' => $sale->id,
+                    'invoice_number' => $sale->invoice_number,
+                    'customer_name' => $sale->customer_name,
+                    'customer_phone' => $sale->customer_phone,
+                    'payment_type' => $sale->payment_type,
+                    'payment_status' => $sale->payment_status,
+                    'total_amount' => (string) $sale->total_amount,
+                    'amount_tendered' => (string) $sale->amount_tendered,
+                    'change_amount' => (string) $sale->change_amount,
+                    'notes' => $sale->notes,
+                    'settled_at' => $sale->settled_at?->toIso8601String(),
+                    'created_at' => $sale->created_at?->toIso8601String(),
+                    'items' => $sale->items->map(function ($item) {
+                        return [
+                            'product_id' => $item->product_id,
+                            'product_name' => $item->product_name,
+                            'unit' => $item->unit,
+                            'unit_price' => (string) $item->unit_price,
+                            'cost_price' => (string) $item->cost_price,
+                            'quantity' => $item->quantity,
+                            'subtotal' => (string) $item->subtotal,
+                        ];
+                    }),
+                ];
+            });
+
+            $stockAudits = StockAudit::with('items')->get()->map(function ($audit) {
+                return [
+                    'id' => $audit->id,
+                    'audit_code' => $audit->audit_code,
+                    'status' => $audit->status,
+                    'started_at' => $audit->started_at?->toIso8601String(),
+                    'completed_at' => $audit->completed_at?->toIso8601String(),
+                    'total_items_audited' => $audit->total_items_audited,
+                    'total_units_sold' => $audit->total_units_sold,
+                    'total_expected_revenue' => (string) $audit->total_expected_revenue,
+                    'total_gross_profit' => (string) $audit->total_gross_profit,
+                    'notes' => $audit->notes,
+                    'items' => $audit->items->map(function ($item) {
+                        return [
+                            'product_id' => $item->product_id,
+                            'starting_stock' => $item->starting_stock,
+                            'restocked_quantity' => $item->restocked_quantity,
+                            'physical_count' => $item->physical_count,
+                            'units_sold' => $item->units_sold,
+                            'unit_cost' => (string) $item->unit_cost,
+                            'unit_price' => (string) $item->unit_price,
+                            'subtotal_revenue' => (string) $item->subtotal_revenue,
+                            'subtotal_profit' => (string) $item->subtotal_profit,
+                            'discrepancy_notes' => $item->discrepancy_notes,
+                        ];
+                    }),
+                ];
+            });
+
+            $stockMovements = StockMovement::all()->map(function ($m) {
+                return [
+                    'product_id' => $m->product_id,
+                    'type' => $m->type,
+                    'quantity_change' => $m->quantity_change,
+                    'notes' => $m->notes,
+                    'created_at' => $m->created_at?->toIso8601String(),
+                ];
+            });
+
             return [
-                'id' => $cat->id,
-                'name' => $cat->name,
-                'created_at' => $cat->created_at?->toIso8601String(),
+                'format' => 'sari_full_instance_backup',
+                'version' => '1.0',
+                'exported_at' => now()->toIso8601String(),
+                'generator' => 'Sari-IMS Instance Backup Engine',
+                'store_settings' => $storeSettings,
+                'summary' => [
+                    'categories_count' => $categories->count(),
+                    'products_count' => $products->count(),
+                    'sales_count' => $sales->count(),
+                    'audits_count' => $stockAudits->count(),
+                    'movements_count' => $stockMovements->count(),
+                ],
+                'categories' => $categories,
+                'products' => $products,
+                'sales' => $sales,
+                'stock_movements' => $stockMovements,
+                'stock_audits' => $stockAudits,
             ];
         });
-
-        $products = Product::with('category')->get()->map(function ($prod) {
-            return [
-                'id' => $prod->id,
-                'category_id' => $prod->category_id,
-                'category_name' => $prod->category?->name,
-                'barcode' => $prod->barcode,
-                'name' => $prod->name,
-                'original_name' => $prod->original_name,
-                'unit' => $prod->unit,
-                'cost_price' => (string) $prod->cost_price,
-                'selling_price' => (string) $prod->selling_price,
-                'stock_quantity' => $prod->stock_quantity,
-                'reorder_level' => $prod->reorder_level,
-                'is_active' => (bool) $prod->is_active,
-                'created_at' => $prod->created_at?->toIso8601String(),
-            ];
-        });
-
-        $sales = Sale::with('items')->get()->map(function ($sale) {
-            return [
-                'id' => $sale->id,
-                'invoice_number' => $sale->invoice_number,
-                'customer_name' => $sale->customer_name,
-                'customer_phone' => $sale->customer_phone,
-                'payment_type' => $sale->payment_type,
-                'payment_status' => $sale->payment_status,
-                'total_amount' => (string) $sale->total_amount,
-                'amount_tendered' => (string) $sale->amount_tendered,
-                'change_amount' => (string) $sale->change_amount,
-                'notes' => $sale->notes,
-                'settled_at' => $sale->settled_at?->toIso8601String(),
-                'created_at' => $sale->created_at?->toIso8601String(),
-                'items' => $sale->items->map(function ($item) {
-                    return [
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product_name,
-                        'unit' => $item->unit,
-                        'unit_price' => (string) $item->unit_price,
-                        'cost_price' => (string) $item->cost_price,
-                        'quantity' => $item->quantity,
-                        'subtotal' => (string) $item->subtotal,
-                    ];
-                }),
-            ];
-        });
-
-        $stockAudits = StockAudit::with('items')->get()->map(function ($audit) {
-            return [
-                'id' => $audit->id,
-                'audit_code' => $audit->audit_code,
-                'status' => $audit->status,
-                'started_at' => $audit->started_at?->toIso8601String(),
-                'completed_at' => $audit->completed_at?->toIso8601String(),
-                'total_items_audited' => $audit->total_items_audited,
-                'total_units_sold' => $audit->total_units_sold,
-                'total_expected_revenue' => (string) $audit->total_expected_revenue,
-                'total_gross_profit' => (string) $audit->total_gross_profit,
-                'notes' => $audit->notes,
-                'items' => $audit->items->map(function ($item) {
-                    return [
-                        'product_id' => $item->product_id,
-                        'starting_stock' => $item->starting_stock,
-                        'restocked_quantity' => $item->restocked_quantity,
-                        'physical_count' => $item->physical_count,
-                        'units_sold' => $item->units_sold,
-                        'unit_cost' => (string) $item->unit_cost,
-                        'unit_price' => (string) $item->unit_price,
-                        'subtotal_revenue' => (string) $item->subtotal_revenue,
-                        'subtotal_profit' => (string) $item->subtotal_profit,
-                        'discrepancy_notes' => $item->discrepancy_notes,
-                    ];
-                }),
-            ];
-        });
-
-        $stockMovements = StockMovement::all()->map(function ($m) {
-            return [
-                'product_id' => $m->product_id,
-                'type' => $m->type,
-                'quantity_change' => $m->quantity_change,
-                'notes' => $m->notes,
-                'created_at' => $m->created_at?->toIso8601String(),
-            ];
-        });
-
-        return [
-            'format' => 'sari_full_instance_backup',
-            'version' => '1.0',
-            'exported_at' => now()->toIso8601String(),
-            'generator' => 'Sari-IMS Instance Backup Engine',
-            'store_settings' => $storeSettings,
-            'summary' => [
-                'categories_count' => $categories->count(),
-                'products_count' => $products->count(),
-                'sales_count' => $sales->count(),
-                'audits_count' => $stockAudits->count(),
-                'movements_count' => $stockMovements->count(),
-            ],
-            'categories' => $categories,
-            'products' => $products,
-            'sales' => $sales,
-            'stock_movements' => $stockMovements,
-            'stock_audits' => $stockAudits,
-        ];
     }
 
     private function validateBackup(array $backup): void
