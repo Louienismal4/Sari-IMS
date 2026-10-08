@@ -95,13 +95,16 @@ if [ "$APP_ENV" = "production" ] && [ -n "$APP_KEY" ]; then
     php artisan view:cache || true
 fi
 
-# Run database migrations
-echo "Running database migrations..."
-php artisan migrate --force || true
+# Restore restarts must preserve the snapshot instead of migrating or seeding it.
+if [ -f /tmp/sari-skip-database-bootstrap ]; then
+    rm -f /tmp/sari-skip-database-bootstrap
+else
+    echo "Running database migrations..."
+    php artisan migrate --force || true
 
-# Seed database with initial catalog
-echo "Seeding starter store inventory..."
-php artisan db:seed --force || true
+    echo "Seeding starter store inventory..."
+    php artisan db:seed --force || true
+fi
 
 # Start server
 echo "Starting Laravel server on port 8000..."

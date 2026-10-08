@@ -18,7 +18,7 @@
 #   ./prod.sh uninstall [flags] # Teardown (--purge-data or --purge-all)
 # ==============================================================================
 
-set -e
+set -eo pipefail
 
 # ANSI Colors
 GREEN='\033[0;32m'
@@ -181,32 +181,85 @@ wait_for_db() {
 }
 
 # Helper: Perform database backup
-do_backup() {
+do_backup() (
+  set -e
   ensure_docker
   setup_env
+  umask 077
   local backup_dir="${DEPLOY_DIR}/backups"
   mkdir -p "${backup_dir}"
 
-  local timestamp
+  local timestamp work_dir backup_file
   timestamp=$(date +"%Y%m%d_%H%M%S")
-  local backup_file="${backup_dir}/sari_backup_${timestamp}.sql.gz"
+  work_dir=$(mktemp -d "${backup_dir}/.backup_${timestamp}.XXXXXX")
+  trap 'rm -rf "$work_dir"' EXIT
+  trap 'exit 1' HUP INT TERM
+  backup_file="${backup_dir}/sari_backup_${timestamp}_${work_dir##*.}.sql.gz"
 
   echo -e "${BLUE}💾 Creating atomic PostgreSQL backup...${NC}"
   $DOCKER_CMD compose exec -T -e PGPASSWORD="${DB_PASSWORD}" postgres \
-    pg_dump -U "${DB_USERNAME:-sari_prod_user}" -d "${DB_DATABASE:-sari_inventory}" -F p \
-    | gzip > "${backup_file}"
-
-  if [ -s "${backup_file}" ]; then
-    local size
-    size=$(du -h "${backup_file}" | cut -f1)
-    echo -e "${GREEN}✓ Backup created successfully!${NC}"
-    echo -e "  File: ${CYAN}${backup_file}${NC} (${size})"
-  else
-    echo -e "${RED}❌ Backup file is empty. Please verify database container status.${NC}"
-    rm -f "${backup_file}"
+    pg_dump -U "${DB_USERNAME:-sari_prod_user}" -d "${DB_DATABASE:-sari_inventory}" \
+    --clean --if-exists -F p > "${work_dir}/dump.sql"
+  if [ ! -s "${work_dir}/dump.sql" ]; then
+    echo -e "${RED}❌ Database dump is empty.${NC}" >&2
     return 1
   fi
-}
+  gzip -c "${work_dir}/dump.sql" > "${work_dir}/dump.sql.gz"
+  gzip -t "${work_dir}/dump.sql.gz"
+  mv "${work_dir}/dump.sql.gz" "$backup_file"
+  echo -e "${GREEN}✓ Backup created successfully!${NC}"
+  echo -e "  File: ${CYAN}${backup_file}${NC}"
+)
+
+# Decompress before touching the database, then replace the application schema atomically.
+do_restore() (
+  set -e
+  umask 077
+  local work_dir backend_stopped=false running_services
+  work_dir=$(mktemp -d)
+  cleanup_restore() {
+    local status=$?
+    trap - EXIT
+    rm -rf "$work_dir"
+    if [ "$backend_stopped" = true ]; then
+      $DOCKER_CMD compose start backend || status=1
+    fi
+    exit "$status"
+  }
+  trap cleanup_restore EXIT
+  trap 'exit 1' HUP INT TERM
+
+  gunzip -c "$1" > "${work_dir}/dump.sql"
+  if [ ! -s "${work_dir}/dump.sql" ]; then
+    echo -e "${RED}❌ Restore SQL is empty.${NC}" >&2
+    return 1
+  fi
+  running_services=$($DOCKER_CMD compose ps --status running --services)
+  if echo "$running_services" | grep -qx backend; then
+    if ! $DOCKER_CMD compose exec -T backend grep -q sari-skip-database-bootstrap /var/www/html/docker-entrypoint.sh; then
+      echo -e "${RED}❌ Update the backend image before restoring: it lacks safe restart support.${NC}" >&2
+      return 1
+    fi
+    $DOCKER_CMD compose exec -T backend touch /tmp/sari-skip-database-bootstrap
+    backend_stopped=true
+    $DOCKER_CMD compose stop backend
+  fi
+
+  echo -e "${BLUE}Restoring database...${NC}"
+  {
+    # Older archives lack DROP statements; remove stale application tables too.
+    printf '%s\n' 'DROP SCHEMA public CASCADE;' 'CREATE SCHEMA public;'
+    cat "${work_dir}/dump.sql"
+  } | $DOCKER_CMD compose exec -T -e PGPASSWORD="${DB_PASSWORD}" postgres \
+    psql -X --single-transaction -v ON_ERROR_STOP=1 \
+      -U "${DB_USERNAME:-sari_prod_user}" -d "${DB_DATABASE:-sari_inventory}"
+
+  if [ "$backend_stopped" = true ]; then
+    $DOCKER_CMD compose start backend
+    backend_stopped=false
+  fi
+  echo -e "${GREEN}✓ Database restored successfully.${NC}"
+)
 
 # Command dispatch
 case "$1" in
@@ -249,11 +302,15 @@ case "$1" in
 
   update|upgrade)
     ensure_docker
+    setup_env
     echo -e "${BLUE}=====================================================${NC}"
     echo -e "${BLUE} 🔄 Upgrading Sari-IMS Production Stack${NC}"
     echo -e "${BLUE}=====================================================${NC}"
 
-    echo -e "${CYAN}Step 1: Updating CLI operation scripts...${NC}"
+    echo -e "${CYAN}Step 1: Creating automated pre-update safety backup...${NC}"
+    do_backup
+
+    echo -e "${CYAN}Step 2: Updating CLI operation scripts...${NC}"
     if [ -d "$SCRIPT_DIR/.git" ] || [ -d "$DEPLOY_DIR/../.git" ]; then
       git -C "$SCRIPT_DIR" pull --ff-only 2>/dev/null || git pull --ff-only 2>/dev/null || true
       echo -e "${GREEN}✓ Git repository synced.${NC}"
@@ -268,9 +325,6 @@ case "$1" in
         echo -e "${GREEN}✓ Updated prod.sh CLI script to latest version.${NC}"
       fi
     fi
-
-    echo -e "${CYAN}Step 2: Creating automated pre-update safety backup...${NC}"
-    do_backup || { echo -e "${YELLOW}⚠️ Backup failed, continuing upgrade...${NC}"; }
 
     echo -e "${CYAN}Step 3: Pulling latest container images...${NC}"
     $DOCKER_CMD compose pull
@@ -326,10 +380,7 @@ case "$1" in
     read -rp "Proceed? (y/N): " confirm
     case "$confirm" in
       [yY][eE][sS]|[yY])
-        echo -e "${BLUE}Restoring database...${NC}"
-        gunzip -c "$backup_file" | $DOCKER_CMD compose exec -T -e PGPASSWORD="${DB_PASSWORD}" postgres \
-          psql -U "${DB_USERNAME:-sari_prod_user}" -d "${DB_DATABASE:-sari_inventory}"
-        echo -e "${GREEN}✓ Database restored successfully.${NC}"
+        do_restore "$backup_file"
         ;;
       *)
         echo "Restore cancelled."
@@ -385,7 +436,7 @@ case "$1" in
 
     if [ "$skip_backup" = false ]; then
       echo -e "${CYAN}Step 1: Creating safety backup before reset...${NC}"
-      do_backup || echo -e "${YELLOW}⚠️  Backup failed, continuing reset...${NC}"
+      do_backup
     fi
 
     echo -e "${BLUE}Step 2: Resetting database in production container...${NC}"

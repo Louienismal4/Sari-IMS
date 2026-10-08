@@ -101,13 +101,22 @@ To trigger an on-demand, atomic backup of the PostgreSQL database:
 ```bash
 ./prod.sh backup
 ```
-Backups are saved as compressed SQL archives in `deploy/backups/sari_backup_YYYYMMDD_HHMMSS.sql.gz`.
+Backups are saved as compressed SQL archives in `deploy/backups/sari_backup_YYYYMMDD_HHMMSS_RANDOM.sql.gz`.
+
+Only verified, nonempty dumps are published. Update and reset abort if their safety backup fails;
+reset still supports the explicit `--no-backup` option.
 
 ### Restoring a Backup
 To restore a backup into the running PostgreSQL container:
 ```bash
-./prod.sh restore backups/sari_backup_YYYYMMDD_HHMMSS.sql.gz
+./prod.sh restore backups/sari_backup_YYYYMMDD_HHMMSS_RANDOM.sql.gz
 ```
+
+Restore replaces the application `public` schema in one transaction and rolls back SQL errors.
+The backend is stopped during restore and restarted without migrations or seeds if it was running.
+Corrupted archives are rejected before stopping the backend. A running backend image must support
+the restore bootstrap skip marker; older images are rejected before modifying the database.
+Use trusted CLI-generated archives.
 
 ---
 
