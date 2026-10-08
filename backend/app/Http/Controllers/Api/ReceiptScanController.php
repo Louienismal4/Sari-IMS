@@ -62,7 +62,7 @@ class ReceiptScanController extends Controller
 
             $msg = $e->getMessage();
             if (str_contains($msg, 'Gemini API key') || str_contains($msg, 'GEMINI_API_KEY')) {
-                return $this->error('Gemini API key is not configured on this server. Please add GEMINI_API_KEY to your .env file and restart.', 503);
+                return $this->error('Gemini API key is not configured on this server. Please save your Gemini API key in Settings or during Setup.', 503);
             }
 
             return $this->error('Receipt scan failed: ' . $msg, 500);

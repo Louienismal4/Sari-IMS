@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Category;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -18,7 +19,7 @@ class ReceiptOcrService
     public function processReceipt(string $base64Data, string $mimeType = 'image/jpeg'): array
     {
         $credentialService = app(IntegrationCredentialService::class);
-        $apiKey = $credentialService->get('gemini', 'api_key') ?: config('services.gemini.api_key');
+        $apiKey = $credentialService->get('gemini', 'api_key');
         if (empty($apiKey)) {
             throw new RuntimeException('Gemini API key is not configured. Please set your API key in Settings or during Setup.');
         }
@@ -57,7 +58,7 @@ Return strictly valid JSON matching this schema:
 }
 PROMPT;
 
-        $primaryModel = config('services.gemini.model', 'gemini-2.5-flash-lite');
+        $primaryModel = Setting::get('integrations.gemini.model') ?: config('services.gemini.model', 'gemini-2.5-flash-lite');
 
         $modelsToTry = array_values(array_unique(array_filter([
             $primaryModel,
