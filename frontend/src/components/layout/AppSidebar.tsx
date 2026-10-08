@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Store,
@@ -21,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Category } from "@/types/inventory";
+import { useAuth } from "./AuthGate";
+import { useInventory } from "@/context/InventoryContext";
 
 interface AppSidebarProps {
   sidebarOpen: boolean;
@@ -45,6 +48,19 @@ export function AppSidebar({
   totalTubo = 0,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const { signOut } = useAuth();
+  const { showToast } = useInventory();
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Unable to sign out.", "error");
+      setSigningOut(false);
+    }
+  }
 
   const isDashboard = pathname === "/";
   const isPos = pathname === "/pos";
@@ -268,6 +284,11 @@ export function AppSidebar({
               </CardContent>
             </Card>
           )}
+        </div>
+        <div className="p-3 border-t border-zinc-100">
+          <Button variant="outline" className="w-full" disabled={signingOut} onClick={handleSignOut}>
+            {signingOut ? "Signing out…" : "Sign out"}
+          </Button>
         </div>
       </aside>
     </>

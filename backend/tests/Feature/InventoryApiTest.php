@@ -9,6 +9,12 @@ class InventoryApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->create(), 'sanctum');
+    }
+
     public function test_health_check_endpoint(): void
     {
         $response = $this->getJson('/api/health');

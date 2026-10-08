@@ -18,6 +18,12 @@ class BackupApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->create(), 'sanctum');
+    }
+
     public function test_can_export_full_instance_backup(): void
     {
         $cat = Category::create(['name' => 'Snacks & Biscuits']);

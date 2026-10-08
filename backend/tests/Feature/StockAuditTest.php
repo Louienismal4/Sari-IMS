@@ -19,6 +19,7 @@ class StockAuditTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->create(), 'sanctum');
 
         $category = Category::create(['name' => 'Instant Noodles']);
 

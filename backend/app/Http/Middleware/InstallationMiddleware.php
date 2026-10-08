@@ -31,6 +31,8 @@ class InstallationMiddleware
         'api/setup/admin',
         'api/setup/store',
         'api/onboarding/setup',
+        'api/setup/test-*',
+        'api/onboarding/test-*',
     ];
 
     public function __construct(

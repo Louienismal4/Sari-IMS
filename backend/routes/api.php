@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DatabaseController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReceiptScanController;
@@ -14,6 +15,7 @@ Route::get('/health', [SetupController::class, 'health']);
 Route::get('/health/ready', [SetupController::class, 'ready']);
 
 Route::middleware('throttle:120,1')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1,admin-login:');
     // Installation & Setup State Machine Endpoints
     Route::get('/installation/status', [SetupController::class, 'status']);
     Route::post('/setup/test-db', [SetupController::class, 'testDatabase'])
@@ -24,7 +26,6 @@ Route::middleware('throttle:120,1')->group(function () {
         ->middleware('throttle:15,1');
     Route::post('/setup/complete', [SetupController::class, 'complete'])
         ->middleware('throttle:10,1');
-
     // Backward-compatible Onboarding aliases
     Route::get('/onboarding/status', [SetupController::class, 'status']);
     Route::post('/onboarding/test-db', [SetupController::class, 'testDatabase'])
@@ -33,6 +34,12 @@ Route::middleware('throttle:120,1')->group(function () {
         ->middleware('throttle:15,1');
     Route::post('/onboarding/setup', [SetupController::class, 'complete'])
         ->middleware('throttle:10,1');
+
+});
+
+Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
+    Route::get('/auth/user', [AuthController::class, 'user']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     // Categories
     Route::get('/categories', [CategoryController::class, 'index']);

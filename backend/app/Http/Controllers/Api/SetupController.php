@@ -8,6 +8,7 @@ use App\Services\IntegrationCredentialService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class SetupController extends Controller
 {
@@ -22,6 +23,10 @@ class SetupController extends Controller
      */
     public function status(): JsonResponse
     {
+        if ($this->installationService->isInstalled() && !Auth::guard('sanctum')->check()) {
+            return response()->json(['installed' => true, 'status' => 'completed']);
+        }
+
         $status = $this->installationService->getStatus();
         return response()->json($status);
     }

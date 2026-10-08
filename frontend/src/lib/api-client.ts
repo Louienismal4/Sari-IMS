@@ -1,4 +1,6 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+export const AUTH_TOKEN_KEY = "sari_admin_token";
+export const AUTH_EXPIRED_EVENT = "sari-auth-expired";
 
 export function getBaseApiUrl(): string {
   return API_URL;
@@ -34,6 +36,12 @@ export async function apiClient<T = unknown>(
 
   const headers = new Headers(customHeaders || {});
   headers.set("Accept", "application/json");
+  const isApiOrigin = typeof window !== "undefined" &&
+    new URL(url, window.location.origin).origin === new URL(API_URL, window.location.origin).origin;
+  const token = isApiOrigin ? sessionStorage.getItem(AUTH_TOKEN_KEY) : null;
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   if (body && !isFormData && !headers.has("Content-Type")) {
@@ -42,6 +50,7 @@ export async function apiClient<T = unknown>(
 
   const res = await fetch(url, {
     ...restOptions,
+    cache: "no-store",
     headers,
     body: body && !isFormData && typeof body === "object" ? JSON.stringify(body) : (body as BodyInit | null | undefined),
   });
@@ -49,6 +58,10 @@ export async function apiClient<T = unknown>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (res.status === 401 && token && sessionStorage.getItem(AUTH_TOKEN_KEY) === token) {
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
     let errorMsg = json.message || `Request failed with status ${res.status}`;
     if (json.errors && typeof json.errors === "object") {
       const details = Object.values(json.errors).flat().join(". ");

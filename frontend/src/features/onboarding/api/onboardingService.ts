@@ -10,15 +10,15 @@ export interface SystemDiagnostic {
 export interface InstallationStatus {
   installed: boolean;
   status: "pending" | "installing" | "completed" | "failed";
-  version: string;
-  database: SystemDiagnostic;
-  redis: {
+  version?: string;
+  database?: SystemDiagnostic;
+  redis?: {
     connected: boolean;
     message?: string;
   };
-  storage_writable: boolean;
-  has_admin: boolean;
-  store: {
+  storage_writable?: boolean;
+  has_admin?: boolean;
+  store?: {
     id: number;
     name: string;
     owner_name?: string;
@@ -29,8 +29,8 @@ export interface InstallationStatus {
     target_markup_percentage: number;
     default_reorder_level: number;
   } | null;
-  has_gemini_key: boolean;
-  masked_gemini_key: string | null;
+  has_gemini_key?: boolean;
+  masked_gemini_key?: string | null;
 }
 
 export interface SetupPayload {
@@ -80,6 +80,13 @@ export async function testRedis(): Promise<{ connected: boolean; message: string
 
 export async function testGeminiApiKey(apiKey: string): Promise<{ success: boolean; message: string }> {
   return apiClient<{ success: boolean; message: string }>("/setup/test-integration", {
+    method: "POST",
+    body: { provider: "gemini", api_key: apiKey },
+  });
+}
+
+export async function testInstalledGeminiApiKey(apiKey: string): Promise<{ success: boolean; message: string }> {
+  return apiClient("/settings/test-integration", {
     method: "POST",
     body: { provider: "gemini", api_key: apiKey },
   });
@@ -203,10 +210,10 @@ export const fetchOnboardingStatus = async (): Promise<OnboardingStatus> => {
   const s = await fetchInstallationStatus();
   return {
     is_onboarded: s.installed,
-    has_gemini_key: s.has_gemini_key,
+    has_gemini_key: s.has_gemini_key ?? false,
     masked_gemini_key: s.masked_gemini_key || "",
-    db_connected: s.database.connected,
-    db_error: s.database.connected ? null : s.database.message,
+    db_connected: s.database?.connected ?? false,
+    db_error: s.database?.connected ? null : s.database?.message ?? null,
     config: {
       app_name: s.store?.name || "Sari-Sari Store",
       db_host: "postgres",
@@ -218,4 +225,3 @@ export const fetchOnboardingStatus = async (): Promise<OnboardingStatus> => {
     },
   };
 };
-

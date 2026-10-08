@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { InventoryProvider } from "@/context/InventoryContext";
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthGate } from "@/components/layout/AuthGate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,9 +37,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full bg-slate-50 antialiased`}
     >
       <body className="min-h-full w-full bg-slate-50 flex flex-col overflow-x-hidden">
-        <InventoryProvider>
-          <AppShell>{children}</AppShell>
-        </InventoryProvider>
+        <AuthGate>
+          <InventoryProvider>
+            <AppShell>{children}</AppShell>
+          </InventoryProvider>
+        </AuthGate>
       </body>
     </html>
   );

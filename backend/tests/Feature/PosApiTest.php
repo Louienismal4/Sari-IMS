@@ -19,6 +19,7 @@ class PosApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->create(), 'sanctum');
 
         $category = Category::create(['name' => 'Snacks']);
         $this->productA = Product::create([

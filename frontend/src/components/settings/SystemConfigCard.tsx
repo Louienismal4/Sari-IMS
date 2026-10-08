@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   fetchOnboardingStatus,
-  testGeminiApiKey,
+  testInstalledGeminiApiKey,
   updateGeminiApiKey,
   deleteGeminiApiKey,
   OnboardingStatus,
@@ -71,7 +71,7 @@ export function SystemConfigCard({ showToast }: SystemConfigCardProps) {
     setTestingKey(true);
     setTestResult(null);
     try {
-      const res = await testGeminiApiKey(geminiKeyInput.trim());
+      const res = await testInstalledGeminiApiKey(geminiKeyInput.trim());
       setTestResult({ valid: true, message: res.message });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to test Gemini key.";

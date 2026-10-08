@@ -67,6 +67,8 @@ The script automatically:
 | **PostgreSQL Database** | `localhost:5432` | Accessible via TablePlus / DBeaver (`sari_user` / `.env` password) |
 | **Redis Cache & Queue** | `localhost:6379` | Cache, sessions, and queue driver |
 
+After setup, sign in with the administrator email and password entered in the wizard. Store operations require sign-in, including direct API requests. Use **Sign out** at the bottom of the navigation to revoke the current session. Sign-in expires after eight hours; closing the browser tab removes its locally stored token.
+
 ### CLI Management (`./dev.sh`)
 | Command | Description | Example |
 | :--- | :--- | :--- |

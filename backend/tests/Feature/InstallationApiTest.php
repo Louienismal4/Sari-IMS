@@ -36,7 +36,7 @@ class InstallationApiTest extends TestCase
             ]);
     }
 
-    public function test_setup_completion_locks_mutating_endpoints_and_unlocks_normal_routes(): void
+    public function test_setup_completion_locks_setup_and_requires_administrator_sign_in(): void
     {
         config(['app.enforce_installation_middleware_in_tests' => true]);
 
@@ -74,8 +74,11 @@ class InstallationApiTest extends TestCase
         $lockedResponse->assertStatus(403)
             ->assertJsonPath('error', 'Installation already completed');
 
-        // Normal routes should now be unlocked
-        $productsResponse = $this->getJson('/api/products');
-        $productsResponse->assertStatus(200);
+        $this->getJson('/api/products')->assertUnauthorized();
+        $login = $this->postJson('/api/auth/login', [
+            'email' => $setupPayload['admin']['email'],
+            'password' => $setupPayload['admin']['password'],
+        ])->assertOk();
+        $this->withToken($login->json('token'))->getJson('/api/products')->assertOk();
     }
 }

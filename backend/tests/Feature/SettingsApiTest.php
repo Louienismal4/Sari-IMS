@@ -16,6 +16,7 @@ class SettingsApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->create(), 'sanctum');
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
