@@ -51,6 +51,8 @@ services:
     volumes:
       - ./backend:/var/www/html
       - /var/www/html/vendor
+      # Host Composer discovers dev providers that are absent from the container.
+      - /var/www/html/bootstrap/cache
       - ./.env:/var/www/html/.env
     depends_on:
       postgres:
